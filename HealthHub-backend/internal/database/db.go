@@ -1,14 +1,12 @@
 package database
 
 import (
-	"HealthHubConnect/env"
 	"HealthHubConnect/internal/database/migrations"
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -16,11 +14,11 @@ var db *gorm.DB
 var sqlDB *sql.DB
 
 func InitDB() (*gorm.DB, error) {
-	dsn := env.Dsn
+	dbPath := "healthhub.db"
 	var err error
 
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // Enable statement cache to reuse already prepared statements
+	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		PrepareStmt: true,
 	})
 	if err != nil {
 		return nil, err
@@ -30,10 +28,6 @@ func InitDB() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	sqlDB.SetMaxIdleConns(env.MaxIdleConns)
-	sqlDB.SetMaxOpenConns(env.MaxOpenConns)
-	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return db, nil
 }

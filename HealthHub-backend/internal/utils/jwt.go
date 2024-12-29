@@ -167,3 +167,21 @@ func ExtractUserIDFromToken(tokenString string, secret []byte) (uint, error) {
 	}
 	return claims.UserID, nil
 }
+
+func GenerateJWT(userID uint, email string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// TODO: Use proper secret key from environment variables
+	return token.SignedString([]byte("your-secret-key"))
+}
+
+func GenerateResetToken() string {
+	// Generate a random string for password reset
+	// You might want to use crypto/rand for this
+	return "reset-token-" + time.Now().String()
+}

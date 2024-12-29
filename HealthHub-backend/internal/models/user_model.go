@@ -15,7 +15,14 @@ type User struct {
 	Phone          int64  `json:"phone"`
 	// Password       string `json:"password,omitempty" gorm:"-" validate:"required,min=8"`
 	// Role           string    `json:"role" gorm:"default:'user'" validate:"required,oneof=admin user"` //maybe required in the future
-	LastLogin time.Time `json:"last_login"`
+	LastLogin          time.Time          `json:"last_login"`
+	DateOfBirth        time.Time          `json:"date_of_birth" gorm:"not null"`
+	EmergencyContacts  []EmergencyContact `json:"emergency_contacts" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	Allergies          []Allergy          `json:"allergies" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	CurrentMedications []Medication       `json:"current_medications" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	PastMedications    []PastMedication   `json:"past_medications" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+	ResetToken         string             `json:"-"`
+	ResetTokenExpiry   time.Time          `json:"-"`
 }
 
 type LoginAttempt struct {

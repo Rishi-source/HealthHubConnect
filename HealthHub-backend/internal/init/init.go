@@ -4,7 +4,6 @@ import (
 	"HealthHubConnect/env"
 	"HealthHubConnect/internal/database"
 	"HealthHubConnect/internal/handlers"
-	"HealthHubConnect/internal/models"
 	"HealthHubConnect/pkg/logger"
 	"HealthHubConnect/routes"
 	"context"
@@ -33,13 +32,13 @@ func Init() error {
 	}
 
 	// register models for automigration
-	if err := database.AutoMigrate(
-		&models.User{},
-		&models.LoginAttempt{},
-	); err != nil {
-		Loggers.DBLogger.Error().Err(err).Msg("Failed to auto-migrate models")
-		return err
-	}
+	// if err := database.AutoMigrate(
+	// 	&models.User{},
+	// 	&models.LoginAttempt{},
+	// ); err != nil {
+	// 	Loggers.DBLogger.Error().Err(err).Msg("Failed to auto-migrate models")
+	// 	return err
+	// }
 
 	Loggers.GeneralLogger.Info().Msg("Successfully initialized application")
 
