@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -17,16 +18,23 @@ func NewUserHandler(userService *services.UserService) *UserHandler {
 }
 
 type SignUpRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Phone    int64  `json:"phone"`
+	Name     string `json:"name" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Phone    int64  `json:"phone" validate:"required"`
 }
 
 func (h *UserHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 
-	ParseRequestBody(w, r, &req)
+	if err := ParseRequestBody(w, r, &req); err != nil {
+		GenerateErrorResponse(&w, e.NewValidationError("invalid request body"))
+		return
+	}
+
+	// Log the received request for debugging
+	fmt.Printf("Received signup request: %+v", req)
+
 	if err := ValidateSignUpRequest(req); err != nil {
 		GenerateErrorResponse(&w, err)
 		return

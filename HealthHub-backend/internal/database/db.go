@@ -1,7 +1,7 @@
 package database
 
 import (
-	"HealthHubConnect/internal/database/migrations"
+	"HealthHubConnect/internal/models"
 	"context"
 	"database/sql"
 	"errors"
@@ -12,6 +12,17 @@ import (
 
 var db *gorm.DB
 var sqlDB *sql.DB
+
+// Models to migrate - add new models here
+var model = []interface{}{
+	&models.User{},
+	&models.LoginAttempt{},
+	// &models.OAuthAccount{},
+	&models.EmergencyContact{},
+	&models.Allergy{},
+	&models.Medication{},
+	&models.PastMedication{},
+}
 
 func InitDB() (*gorm.DB, error) {
 	dbPath := "healthhub.db"
@@ -24,12 +35,43 @@ func InitDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
+	// Run migrations immediately after db connection
+	if err := autoMigrate(); err != nil {
+		return nil, err
+	}
+
 	sqlDB, err = db.DB()
 	if err != nil {
 		return nil, err
 	}
 
 	return db, nil
+}
+
+// autoMigrate handles database migrations
+func autoMigrate() error {
+	// Migrate the schema
+	for _, model := range model {
+		if err := db.AutoMigrate(model); err != nil {
+			return err
+		}
+	}
+
+	// Create indexes
+	return createIndexes()
+}
+
+// createIndexes creates database indexes
+func createIndexes() error {
+	// User related indexes
+	if err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)`).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_users_is_active ON users (is_active)`).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func Close() error {
@@ -49,10 +91,4 @@ func HealthCheck(ctx context.Context) error {
 		return errors.New("database connection not initialized")
 	}
 	return sqlDB.PingContext(ctx)
-}
-
-// AutoMigrate runs all pending migrations
-func AutoMigrate(models ...interface{}) error {
-	migrations.Register(models...)
-	return migrations.RunMigrations(db)
 }

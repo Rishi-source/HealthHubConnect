@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
@@ -13,39 +14,42 @@ import (
 
 // ParseRequestBody parses and validates JSON request body
 func ParseRequestBody(w http.ResponseWriter, r *http.Request, dst interface{}) error {
+	// Check content type
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return e.NewValidationError("Content-Type must be application/json")
+	}
+
 	// Check if body is empty
 	if r.Body == nil {
 		return e.NewValidationError("request body is empty")
 	}
 
-	// First decode into a map to check for required fields
-	var rawData map[string]interface{}
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&rawData); err != nil {
-		return e.NewInvalidJsonError()
-	}
-
-	// Reset the request body for second decode
+	// Set max body size
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576) // 1MB limit
 
-	// Get required fields from struct tags
-	requiredFields := getRequiredFields(dst)
-	if missingFields := validateRequiredFields(rawData, requiredFields); len(missingFields) > 0 {
-		return e.NewValidationError("missing required fields: " + strings.Join(missingFields, ", "))
-	}
+	// Create decoder with strict settings
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
 
-	// Now decode into the actual struct
-	decoder = json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields() // Ensure no unknown fields
-	if err := decoder.Decode(dst); err != nil {
+	// Attempt to decode
+	if err := dec.Decode(dst); err != nil {
 		switch {
 		case err.Error() == "EOF":
 			return e.NewValidationError("request body is empty")
 		case strings.HasPrefix(err.Error(), "json: unknown field"):
-			return e.NewValidationError("invalid field in request body")
+			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
+			return e.NewValidationError(fmt.Sprintf("unknown field: %s", fieldName))
+		case strings.HasPrefix(err.Error(), "json: cannot unmarshal"):
+			return e.NewValidationError("invalid data type in request")
 		default:
 			return e.NewInvalidJsonError()
 		}
+	}
+
+	// Check for additional data
+	if dec.More() {
+		return e.NewValidationError("request body must only contain one JSON object")
 	}
 
 	return nil
