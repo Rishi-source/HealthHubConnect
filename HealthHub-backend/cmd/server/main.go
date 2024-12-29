@@ -1,27 +1,28 @@
 package main
 
 import (
-	"HealthHub-connect/config"
-	"HealthHub-connect/pkg/database"
-	"HealthHub-connect/routes"
-	"fmt"
-	"log"
-	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
+	appInit "HealthHubConnect/internal/init"
 )
 
 func main() {
 
-	cfg := config.LoadConfig()
-	_, err := database.InitDB(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	router := routes.SetupRouter()
-
-	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
-	log.Printf("Server starting on %s", serverAddr)
-	if err := http.ListenAndServe(serverAddr, router); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	if err := appInit.Init(); err != nil {
+		os.Exit(1)
 	}
 
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Wait for shutdown signal
+	<-quit
+	appInit.Loggers.GeneralLogger.Info().Msg("Shutting down application")
+
+	// cleanup resources
+	if err := appInit.Cleanup(); err != nil {
+		appInit.Loggers.GeneralLogger.Error().Err(err).Msg("Failed to cleanup resources")
+	}
 }

@@ -1,22 +1,19 @@
 package routes
 
 import (
-	"HealthHub-connect/internals/handlers"
-	"HealthHub-connect/internals/middleware"
+	"HealthHubConnect/pkg/middleware"
+	v1 "HealthHubConnect/routes/v1"
 
 	"github.com/gorilla/mux"
+
+	"gorm.io/gorm"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler) *mux.Router {
-	router := mux.NewRouter()
-
-	// Middleware
+func SetupRoutes(router *mux.Router, db *gorm.DB) {
 	router.Use(middleware.LoggingMiddleware)
-	router.Use(middleware.JSONContentTypeMiddleware)
+	// sub router for v1 routes
+	v1Router := router.PathPrefix("/v1").Subrouter()
 
-	// API routes
-	api := router.PathPrefix("/api/v1").Subrouter()
-	SetupAuthRoutes(api, authHandler)
-
-	return router
+	//v1 routes
+	v1.RegisterRoutes(v1Router, db)
 }

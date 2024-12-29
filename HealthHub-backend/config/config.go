@@ -1,21 +1,40 @@
 package config
 
-type Config struct {
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	ServerPort string
+import (
+	"time"
+
+	"github.com/rs/zerolog"
+)
+
+type DBConfig struct {
+	Host     string
+	User     string
+	Password string
+	Dbname   string
+	Port     int
+	Sslmode  string
+	TimeZone string
 }
 
-func LoadConfig() *Config {
-	return &Config{
-		DBHost:     "localhost",
-		DBPort:     "5432",
-		DBUser:     "ujjwal",
-		DBPassword: "password",
-		DBName:     "healthhubconnect",
-		ServerPort: "8080",
-	}
+type LoggerConfig struct {
+	Level      zerolog.Level
+	FilePath   string
+	MaxSize    int
+	MaxBackups int
+	MaxAge     int
+	Compress   bool
+}
+
+type JwtConfig struct {
+	AccessTokenSecret  []byte
+	RefreshTokenSecret []byte
+	AccessTokenTTL     time.Duration
+	RefreshTokenTTL    time.Duration
+}
+
+type HashConfig struct {
+	DefaultBcryptCost int
+	MinSecretLength   int
+	HmacSecret        string
+	Salt              string
 }
