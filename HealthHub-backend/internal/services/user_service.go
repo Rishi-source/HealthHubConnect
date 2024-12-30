@@ -121,10 +121,10 @@ func (s *UserService) ForgotPassword(ctx context.Context, email string) error {
 		return e.NewValidationError("email not found")
 	}
 
-	// Generate reset token
 	resetToken := utils.GenerateResetToken()
 	user.ResetToken = resetToken
 	user.ResetTokenExpiry = time.Now().Add(15 * time.Minute)
+	// fmt.Println(resetToken)
 
 	if err := s.userRepo.UpdateUser(user, ctx); err != nil {
 		return e.NewInternalError()

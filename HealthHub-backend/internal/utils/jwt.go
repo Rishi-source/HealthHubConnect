@@ -131,7 +131,6 @@ func ValidateToken(tokenString string, secret []byte, expectedType TokenType) (*
 }
 
 func RefreshAccessTokens(refreshToken string) (TokenPair, error) {
-	// First try to validate the refresh token normally
 	claims, err := ValidateToken(refreshToken, env.Jwt.RefreshTokenSecret, RefreshToken)
 	if err != nil {
 		// If the refresh token is expired, try to extract the claims anyway
@@ -183,5 +182,5 @@ func GenerateJWT(userID uint, email string) (string, error) {
 func GenerateResetToken() string {
 	// Generate a random string for password reset
 	// You might want to use crypto/rand for this
-	return "reset-token-" + time.Now().String()
+	return "reset-token-"
 }

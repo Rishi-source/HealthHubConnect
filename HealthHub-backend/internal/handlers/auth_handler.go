@@ -3,10 +3,11 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"time"
+	"strings"
 
 	e "HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/services"
+	"HealthHubConnect/internal/utils"
 )
 
 type UserHandler struct {
@@ -79,7 +80,7 @@ type ForgotPasswordRequest struct {
 }
 
 type ResetPasswordRequest struct {
-	Token       string `json:"token"`
+	// Token       string `json:"token"`
 	NewPassword string `json:"new_password"`
 }
 
@@ -102,18 +103,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"tokens": tokens,
 	}
 	GenerateResponse(&w, http.StatusOK, response)
-}
-
-func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	// Clear the auth cookie if using cookie-based auth
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Now().Add(-time.Hour),
-		HttpOnly: true,
-	})
-	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "logged out successfully"})
 }
 
 func (h *UserHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
@@ -141,8 +130,25 @@ func (h *UserHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		response := e.CustomError{
+			Message:    "Authorization Header required",
+			ErrorCode:  "MISSING_AUTH_HEADER",
+			StatusCode: http.StatusUnauthorized,
+		}
+		http.Error(w, response.Message, response.StatusCode)
+		return
+	}
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		http.Error(w, "Unauthorized: Invalid Token Format", http.StatusUnauthorized)
+		return
+	}
+
+	token := tokenParts[1]
 	ctx := r.Context()
-	if err := h.userService.ResetPassword(ctx, req.Token, req.NewPassword); err != nil {
+	if err := h.userService.ResetPassword(ctx, token, req.NewPassword); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
@@ -159,16 +165,15 @@ func (h *UserHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	user, tokens, err := h.userService.RefreshUserToken(ctx, refreshToken)
+	// ctx := r.Context()
+	TokenPair, err := utils.RefreshAccessTokens(refreshToken)
 	if err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
 	response := map[string]interface{}{
-		"user":   user,
-		"tokens": tokens,
+		"tokens": TokenPair,
 	}
 	GenerateResponse(&w, http.StatusOK, response)
 }
