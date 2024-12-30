@@ -38,3 +38,10 @@ type HashConfig struct {
 	HmacSecret        string
 	Salt              string
 }
+
+type MailConfig struct {
+	SmtpHost     string
+	SmtpPort     string
+	MailUsername string
+	MailPassword string
+}

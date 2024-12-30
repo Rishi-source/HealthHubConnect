@@ -61,6 +61,13 @@ var Hash = config.HashConfig{
 	Salt:              "salt",
 }
 
+var Mail = config.MailConfig{
+	SmtpHost:     "smtp.zoho.com",
+	SmtpPort:     "587", // Use "465"
+	MailUsername: "your-email@zoho.com",
+	MailPassword: "your-app-password",
+}
+
 //in production set these variable private and add getter functions
 
 // func GetDSN() string {
