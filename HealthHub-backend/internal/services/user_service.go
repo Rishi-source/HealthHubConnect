@@ -94,7 +94,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*model
 		return nil, utils.TokenPair{}, e.NewValidationError("invalid email or password")
 	}
 
-	err = utils.ComparePassword(user.PasswordHash, password)
+	err = utils.ComparePassword(password, user.PasswordHash)
 	if err != nil {
 		return nil, utils.TokenPair{}, e.NewValidationError("invalid email or password")
 	}

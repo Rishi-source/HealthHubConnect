@@ -26,6 +26,4 @@ func RegisterAuthRoutes(router *mux.Router, db *gorm.DB) {
 	router.HandleFunc("/auth/forgot-password", authHandler.ForgotPassword).Methods("POST")
 	router.HandleFunc("/auth/reset-password", authHandler.ResetPassword).Methods("POST")
 
-	router.HandleFunc("/health", handlers.HealthCheck).Methods("GET")
-
 }

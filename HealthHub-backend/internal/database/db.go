@@ -50,7 +50,6 @@ func InitDB() (*gorm.DB, error) {
 
 // autoMigrate handles database migrations
 func autoMigrate() error {
-	// Migrate the schema
 	for _, model := range model {
 		if err := db.AutoMigrate(model); err != nil {
 			return err

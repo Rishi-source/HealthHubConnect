@@ -85,3 +85,11 @@ func NewDuplicateResourceError(resource string) *CustomError {
 		StatusCode: http.StatusConflict,
 	}
 }
+
+func NewNotAuthorizedError(resource string) *CustomError {
+	return &CustomError{
+		Message:    "Not Authorized to make this request" + resource,
+		ErrorCode:  "UNAUTHORIRIZED",
+		StatusCode: http.StatusUnauthorized,
+	}
+}

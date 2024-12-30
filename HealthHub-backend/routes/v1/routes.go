@@ -10,6 +10,7 @@ import (
 func RegisterRoutes(router *mux.Router, db *gorm.DB) {
 	// Register different route groups
 	RegisterAuthRoutes(router, db)
+	ResgisterHealthRoutes(router, db)
 
 	// Register other route groups here
 	router.HandleFunc("/health", handlers.HealthCheck).Methods("GET")

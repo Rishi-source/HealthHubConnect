@@ -31,15 +31,6 @@ func Init() error {
 		return err
 	}
 
-	// register models for automigration
-	// if err := database.AutoMigrate(
-	// 	&models.User{},
-	// 	&models.LoginAttempt{},
-	// ); err != nil {
-	// 	Loggers.DBLogger.Error().Err(err).Msg("Failed to auto-migrate models")
-	// 	return err
-	// }
-
 	Loggers.GeneralLogger.Info().Msg("Successfully initialized application")
 
 	if err := InitServer(db); err != nil {
