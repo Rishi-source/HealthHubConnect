@@ -1,0 +1,9 @@
+.air.toml
+tmp/
+logs/
+cmd/server/l
+cmd/server/logs/
+cmd/server/healthhub.db
+healthhub.db
+env/
+env
