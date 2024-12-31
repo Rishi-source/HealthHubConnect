@@ -1,19 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Heart, LogIn, UserPlus, Eye, EyeOff,
   Mail, Lock, User, ArrowRight, Check,
   Shield, Activity, Calendar, X, Sparkles
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom';
 
 const HeartbeatLine = ({ top, opacity = 1 }) => {
   return (
-    <div 
+    <div
       className="absolute pointer-events-none overflow-hidden"
-      style={{ 
+      style={{
         top: top,
         left: 0,
         right: 0,
-        opacity: opacity 
+        opacity: opacity
       }}
     >
       <svg
@@ -29,15 +30,15 @@ const HeartbeatLine = ({ top, opacity = 1 }) => {
         />
       </svg>
     </div>
-  );
-};
+  )
+}
+
 const PulseCircle = ({ size = "lg", color = "white", delay = 0 }) => {
   const sizes = {
     sm: "h-8 w-8",
     md: "h-12 w-12",
     lg: "h-16 w-16"
   }
-
 
   return (
     <div className="absolute">
@@ -53,17 +54,19 @@ const PulseCircle = ({ size = "lg", color = "white", delay = 0 }) => {
   )
 }
 
-const AuthPage = () => {
+const AuthPage = ({ onComplete }) => {
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [activeField, setActiveField] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [formComplete, setFormComplete] = useState(false)
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    fullName: ''
   })
   const [passwordsMatch, setPasswordsMatch] = useState(true)
   const [passwordError, setPasswordError] = useState('')
@@ -95,6 +98,11 @@ const AuthPage = () => {
     duration: 8 + i * 2
   })))
 
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -109,6 +117,11 @@ const AuthPage = () => {
           name === 'confirmPassword' ? value : formData.confirmPassword
         )
       }
+    }
+
+    // Clear any previous errors
+    if (passwordError) {
+      setPasswordError('');
     }
   }
 
@@ -127,9 +140,14 @@ const AuthPage = () => {
 
   const isFormValid = () => {
     if (isLogin) {
-      return formData.email && formData.password
+      return formData.email && formData.password && validateEmail(formData.email)
     } else {
-      return formData.email && formData.password && formData.confirmPassword && passwordsMatch
+      return formData.email &&
+        formData.password &&
+        formData.confirmPassword &&
+        passwordsMatch &&
+        formData.fullName &&
+        validateEmail(formData.email)
     }
   }
 
@@ -138,19 +156,40 @@ const AuthPage = () => {
     if (!isFormValid()) return
 
     setIsLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setFormComplete(true)
-    setTimeout(() => {
-      setIsLoading(false)
-      setFormComplete(false)
-    }, 1000)
+
+    if (isLogin) {
+      // Handle login logic
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setFormComplete(true)
+      setTimeout(() => {
+        setIsLoading(false)
+        setFormComplete(false)
+        // Handle login success
+      }, 1000)
+    } else {
+      try {
+        // Handle signup with OTP
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        setFormComplete(true)
+        setTimeout(() => {
+          setIsLoading(false)
+          setFormComplete(false)
+          // Trigger OTP verification
+          onComplete(formData.email)
+        }, 1000)
+      } catch (error) {
+        setPasswordError('Something went wrong. Please try again.')
+        setIsLoading(false)
+      }
+    }
   }
 
+  // Rest of your component's JSX remains the same until the form part
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-teal-50 to-white overflow-hidden">
       <div className="min-h-screen flex flex-col lg:flex-row">
+        {/* Left side with animations */}
         <div className="lg:w-1/2 bg-gradient-to-br from-teal-600 via-blue-600 to-blue-700 p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
-
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute top-10 left-10">
               <PulseCircle size="lg" delay={0} />
@@ -158,14 +197,12 @@ const AuthPage = () => {
             <div className="absolute top-20 right-16">
               <PulseCircle size="md" delay={300} />
             </div>
-
             <div className="absolute top-1/2 left-1/4">
               <PulseCircle size="sm" delay={150} />
             </div>
             <div className="absolute top-1/2 right-1/4">
               <PulseCircle size="md" delay={450} />
             </div>
-
             <div className="absolute bottom-16 left-20">
               <PulseCircle size="md" delay={600} />
             </div>
@@ -176,8 +213,9 @@ const AuthPage = () => {
             <HeartbeatLine top="25%" opacity={2} />
             <HeartbeatLine top="50%" opacity={2} />
             <HeartbeatLine top="75%" opacity={2} />
-            </div>            
+          </div>
 
+          {/* Content section */}
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-12 group">
               <div className="relative">
@@ -265,15 +303,25 @@ const AuthPage = () => {
           </div>
         </div>
 
+        {/* Right side with form */}
         <div className="lg:w-1/2 p-8 lg:p-16 flex flex-col justify-center bg-white/80 backdrop-blur-lg">
           <div className="max-w-md mx-auto w-full">
             <div className="flex justify-between items-center mb-12">
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 transform transition-all duration-500">
+              <h2 className="text-3xl lg:text-4xl font-bold text-gray-800">
                 {isLogin ? 'Welcome Back' : 'Create Account'}
               </h2>
               <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-base text-teal-600 hover:text-teal-700 font-medium transform transition-all duration-300 hover:scale-105"
+                onClick={() => {
+                  setIsLogin(!isLogin)
+                  setPasswordError('')
+                  setFormData({
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    fullName: ''
+                  })
+                }}
+                className="text-teal-600 hover:text-teal-700 font-medium transform transition-all duration-300 hover:scale-105"
               >
                 {isLogin ? 'Need an account?' : 'Already have an account?'}
               </button>
@@ -304,10 +352,7 @@ const AuthPage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {!isLogin && (
-                <div
-                  className={`transform transition-all duration-300 ${activeField === 'name' ? 'scale-105' : ''
-                    }`}
-                >
+                <div className={`transform transition-all duration-300 ${activeField === 'name' ? 'scale-105' : ''}`}>
                   <label className="block text-base font-medium text-gray-700 mb-2">
                     Full Name
                   </label>
@@ -315,19 +360,18 @@ const AuthPage = () => {
                     <User className="absolute left-4 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400" />
                     <input
                       type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
                       className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-300"
                       placeholder="Enter your full name"
                       onFocus={() => setActiveField('name')}
-                      onBlur={() => setActiveField(null)}
-                    />
+                      onBlur={() => setActiveField(null)} />
                   </div>
                 </div>
               )}
 
-              <div
-                className={`transform transition-all duration-300 ${activeField === 'email' ? 'scale-105' : ''
-                  }`}
-              >
+              <div className={`transform transition-all duration-300 ${activeField === 'email' ? 'scale-105' : ''}`}>
                 <label className="block text-base font-medium text-gray-700 mb-2">
                   Email Address
                 </label>
@@ -346,13 +390,21 @@ const AuthPage = () => {
                 </div>
               </div>
 
-              <div
-                className={`transform transition-all duration-300 ${activeField === 'password' ? 'scale-105' : ''
-                  }`}
-              >
-                <label className="block text-base font-medium text-gray-700 mb-2">
-                  Password
-                </label>
+              <div className={`transform transition-all duration-300 ${activeField === 'password' ? 'scale-105' : ''}`}>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-base font-medium text-gray-700">
+                    Password
+                  </label>
+                  {isLogin && (
+                    <button
+                    
+                      type="button"
+                      onClick={() => {navigate('/forgot-password');}}
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors duration-300 hover:underline">
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400" />
                   <input
@@ -370,19 +422,13 @@ const AuthPage = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    {showPassword ?
-                      <EyeOff className="h-6 w-6" /> :
-                      <Eye className="h-6 w-6" />
-                    }
+                    {showPassword ? <EyeOff className="h-6 w-6" /> : <Eye className="h-6 w-6" />}
                   </button>
                 </div>
               </div>
 
               {!isLogin && (
-                <div
-                  className={`transform transition-all duration-300 ${activeField === 'confirmPassword' ? 'scale-105' : ''
-                    }`}
-                >
+                <div className={`transform transition-all duration-300 ${activeField === 'confirmPassword' ? 'scale-105' : ''}`}>
                   <label className="block text-base font-medium text-gray-700 mb-2">
                     Confirm Password
                   </label>
@@ -393,8 +439,8 @@ const AuthPage = () => {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className={`w-full pl-12 pr-12 py-4 border-2 ${passwordError ? 'border-red-300' : 'border-gray-200'
-                        } rounded-2xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-300`}
+                      className={`w-full pl-12 pr-12 py-4 border-2 ${passwordError ? 'border-red-300' : 'border-gray-200'} 
+                            rounded-2xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-300`}
                       placeholder="Confirm your password"
                       onFocus={() => setActiveField('confirmPassword')}
                       onBlur={() => setActiveField(null)}
@@ -404,10 +450,7 @@ const AuthPage = () => {
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      {showConfirmPassword ?
-                        <EyeOff className="h-6 w-6" /> :
-                        <Eye className="h-6 w-6" />
-                      }
+                      {showConfirmPassword ? <EyeOff className="h-6 w-6" /> : <Eye className="h-6 w-6" />}
                     </button>
                   </div>
                   {passwordError && (
@@ -423,9 +466,9 @@ const AuthPage = () => {
                 type="submit"
                 disabled={!isFormValid() || isLoading}
                 className={`w-full bg-gradient-to-r from-teal-500 to-blue-600 text-white py-4 rounded-2xl 
-                  transform transition-all duration-300 hover:scale-105 hover:shadow-xl
-                  flex items-center justify-center gap-3 relative overflow-hidden text-lg font-semibold
-                  ${!isFormValid() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}`}
+                      transform transition-all duration-300 hover:scale-105 hover:shadow-xl
+                      flex items-center justify-center gap-3 relative overflow-hidden text-lg font-semibold
+                      ${!isFormValid() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}`}
               >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-7 w-7 border-4 border-white border-t-transparent" />
@@ -449,11 +492,11 @@ const AuthPage = () => {
                     Password must:
                     <ul className="mt-2 space-y-1">
                       <li className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${formData.password.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                        <div className={`h-2 w-2 rounded-full ${formData.password.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`} />
                         Be at least 8 characters long
                       </li>
                       <li className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${formData.password === formData.confirmPassword && formData.password !== '' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                        <div className={`h-2 w-2 rounded-full ${formData.password === formData.confirmPassword && formData.password !== '' ? 'bg-green-500' : 'bg-gray-300'}`} />
                         Passwords must match
                       </li>
                     </ul>
