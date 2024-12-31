@@ -87,4 +87,49 @@ type PastMedication struct {
 	User          User      `json:"-" gorm:"foreignKey:UserID"`
 }
 
+type PhysicalAttributes struct {
+	Height float64 `json:"height"`
+	Weight float64 `json:"weight"`
+}
+
+type Address struct {
+	Street     string `json:"street"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	PostalCode string `json:"postalCode"`
+	Country    string `json:"country"`
+}
+
+type VitalSign struct {
+	Base
+	UserID    uint      `json:"user_id" gorm:"not null;index"`
+	Type      string    `json:"type" gorm:"not null"` // bloodPressure, heartRate, temperature, oxygenSaturation
+	Value     string    `json:"value"`
+	Systolic  string    `json:"systolic,omitempty"`  // for blood pressure
+	Diastolic string    `json:"diastolic,omitempty"` // for blood pressure
+	Timestamp time.Time `json:"timestamp" gorm:"not null"`
+	User      User      `json:"-" gorm:"foreignKey:UserID"`
+}
+
+type HealthProfile struct {
+	Base
+	UserID      uint      `json:"user_id" gorm:"not null;uniqueIndex"`
+	FullName    string    `json:"full_name"`
+	DateOfBirth time.Time `json:"date_of_birth"`
+	Gender      string    `json:"gender"`
+	BloodType   string    `json:"blood_type"`
+	Height      float64   `json:"height"`
+	Weight      float64   `json:"weight"`
+	Email       string    `json:"email"`
+	Phone       string    `json:"phone"`
+	Street      string    `json:"street"`
+	City        string    `json:"city"`
+	State       string    `json:"state"`
+	PostalCode  string    `json:"postal_code"`
+	Country     string    `json:"country"`
+	LastUpdated time.Time `json:"last_updated"`
+	Version     string    `json:"version"`
+	User        User      `json:"-" gorm:"foreignKey:UserID"`
+}
+
 // Index methods remain unchanged...

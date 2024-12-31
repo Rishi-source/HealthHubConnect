@@ -26,4 +26,8 @@ func RegisterAuthRoutes(router *mux.Router, db *gorm.DB) {
 	router.HandleFunc("/auth/forgot-password", authHandler.ForgotPassword).Methods("POST")
 	router.HandleFunc("/auth/reset-password", authHandler.ResetPassword).Methods("POST")
 
+	// Add Google OAuth routes
+	router.HandleFunc("/auth/google/login", authHandler.GoogleLogin).Methods("GET")
+	router.HandleFunc("/auth/google/callback", authHandler.GoogleCallback).Methods("GET")
+
 }

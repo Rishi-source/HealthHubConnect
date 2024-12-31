@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 // database configurations
@@ -62,11 +64,25 @@ var Hash = config.HashConfig{
 }
 
 var Mail = config.MailConfig{
-	SmtpHost:     "smtp.zoho.com",
-	SmtpPort:     "587", // Use "465"
-	MailUsername: "your-email@zoho.com",
-	MailPassword: "your-app-password",
+	SmtpHost:     "smtppro.zoho.in",
+	SmtpPort:     "465", // Use "465"
+	MailUsername: "ujjwal@anochat.in",
+	MailPassword: "7tuzVskvEvbN",
 }
+
+var (
+	GoogleOAuthConfig = &oauth2.Config{
+		ClientID:     "YOUR_GOOGLE_CLIENT_ID",
+		ClientSecret: "YOUR_GOOGLE_CLIENT_SECRET",
+		RedirectURL:  "http://localhost:8081/api/v1/auth/google/callback",
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+	OAuthStateString = "random-string" // In production, generate this dynamically for each request
+)
 
 //in production set these variable private and add getter functions
 

@@ -22,6 +22,8 @@ var model = []interface{}{
 	&models.Allergy{},
 	&models.Medication{},
 	&models.PastMedication{},
+	&models.HealthProfile{},
+	&models.VitalSign{},
 }
 
 func InitDB() (*gorm.DB, error) {
@@ -48,7 +50,6 @@ func InitDB() (*gorm.DB, error) {
 	return db, nil
 }
 
-// autoMigrate handles database migrations
 func autoMigrate() error {
 	for _, model := range model {
 		if err := db.AutoMigrate(model); err != nil {
@@ -56,7 +57,6 @@ func autoMigrate() error {
 		}
 	}
 
-	// Create indexes
 	return createIndexes()
 }
 

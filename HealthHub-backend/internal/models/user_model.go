@@ -23,6 +23,7 @@ type User struct {
 	PastMedications    []PastMedication   `json:"past_medications" gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 	ResetToken         string             `json:"-"`
 	ResetTokenExpiry   time.Time          `json:"-"`
+	AuthProvider       string             `json:"auth_provider" gorm:"default:'local'"`
 }
 
 type LoginAttempt struct {

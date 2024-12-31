@@ -3,6 +3,8 @@ package utils
 import (
 	"HealthHubConnect/env"
 	"errors"
+	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -167,20 +169,8 @@ func ExtractUserIDFromToken(tokenString string, secret []byte) (uint, error) {
 	return claims.UserID, nil
 }
 
-func GenerateJWT(userID uint, email string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"email":   email,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-	}
+func GenerateResetOTP() string {
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// TODO: Use proper secret key from environment variables
-	return token.SignedString([]byte("your-secret-key"))
-}
-
-func GenerateResetToken() string {
-	// Generate a random string for password reset
-	// You might want to use crypto/rand for this
-	return "reset-token-"
+	otp := 100000 + rand.Intn(900000)
+	return fmt.Sprintf("%06d", otp)
 }

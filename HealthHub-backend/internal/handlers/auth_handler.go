@@ -1,10 +1,9 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
+	"HealthHubConnect/env"
 	e "HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/services"
 	"HealthHubConnect/internal/utils"
@@ -25,18 +24,24 @@ type SignUpRequest struct {
 	Phone    int64  `json:"phone" validate:"required"`
 }
 
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Email       string `json:"email" validate:"required,email"`
+	OTP         string `json:"otp" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
+}
+
 func (h *UserHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
-
 	if err := ParseRequestBody(w, r, &req); err != nil {
-		GenerateErrorResponse(&w, e.NewValidationError("invalid request body"))
-		return
-	}
-
-	// Log the received request for debugging
-	fmt.Printf("Received signup request: %+v", req)
-
-	if err := ValidateSignUpRequest(req); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
@@ -47,41 +52,10 @@ func (h *UserHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		GenerateErrorResponse(&w, err)
 		return
 	}
-	response := map[string]interface{}{
+
+	GenerateResponse(&w, http.StatusCreated, map[string]interface{}{
 		"user": user,
-	}
-	GenerateResponse(&w, http.StatusCreated, response)
-}
-
-func ValidateSignUpRequest(req SignUpRequest) error {
-	if req.Name == "" {
-		return e.NewValidationError("name is required")
-	}
-	if req.Email == "" {
-		return e.NewValidationError("email is required")
-	}
-	if req.Password == "" {
-		return e.NewValidationError("password is required")
-	}
-	if req.Phone == 0 {
-		return e.NewValidationError("phone is required")
-	}
-
-	return nil
-}
-
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type ForgotPasswordRequest struct {
-	Email string `json:"email"`
-}
-
-type ResetPasswordRequest struct {
-	// Token       string `json:"token"`
-	NewPassword string `json:"new_password"`
+	})
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -98,11 +72,10 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]interface{}{
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
 		"user":   user,
 		"tokens": tokens,
-	}
-	GenerateResponse(&w, http.StatusOK, response)
+	})
 }
 
 func (h *UserHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
@@ -130,25 +103,8 @@ func (h *UserHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		response := e.CustomError{
-			Message:    "Authorization Header required",
-			ErrorCode:  "MISSING_AUTH_HEADER",
-			StatusCode: http.StatusUnauthorized,
-		}
-		http.Error(w, response.Message, response.StatusCode)
-		return
-	}
-	tokenParts := strings.Split(authHeader, " ")
-	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-		http.Error(w, "Unauthorized: Invalid Token Format", http.StatusUnauthorized)
-		return
-	}
-
-	token := tokenParts[1]
 	ctx := r.Context()
-	if err := h.userService.ResetPassword(ctx, token, req.NewPassword); err != nil {
+	if err := h.userService.ResetPassword(ctx, req.Email, req.OTP, req.NewPassword); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
@@ -176,4 +132,33 @@ func (h *UserHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		"tokens": TokenPair,
 	}
 	GenerateResponse(&w, http.StatusOK, response)
+}
+
+func (h *UserHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	url := env.GoogleOAuthConfig.AuthCodeURL(env.OAuthStateString)
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"url": url,
+	})
+}
+
+func (h *UserHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state")
+	if state != env.OAuthStateString {
+		GenerateErrorResponse(&w, e.NewValidationError("invalid oauth state"))
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	ctx := r.Context()
+
+	user, tokens, err := h.userService.HandleGoogleCallback(ctx, code)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"user":   user,
+		"tokens": tokens,
+	})
 }

@@ -32,6 +32,7 @@ func Init() error {
 	}
 
 	Loggers.GeneralLogger.Info().Msg("Successfully initialized application")
+	// utils.SendEmail("ujjwaliiii40@gmail.com", "how are you", "sent from zoho")
 
 	if err := InitServer(db); err != nil {
 		Loggers.ServerLogger.Error().Err(err).Msg("Failed to initialize server")
