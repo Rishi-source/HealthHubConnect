@@ -6,14 +6,11 @@ import {
 
 const ReviewStep = ({ 
   data = {
-    fullName: '',
     dateOfBirth: '',
     gender: '',
     bloodType: '',
     height: '',
     weight: '',
-    email: '',
-    phone: '',
     address: {},
     emergencyContacts: [],
     allergies: [],
@@ -78,7 +75,6 @@ const ReviewStep = ({
   );
 
   const isBasicInfoComplete = Boolean(
-    data.fullName && 
     data.dateOfBirth && 
     data.gender &&
     data.bloodType &&
@@ -87,8 +83,6 @@ const ReviewStep = ({
   );
 
   const isContactComplete = Boolean(
-    data.email && 
-    data.phone && 
     data.address?.street &&
     data.address?.city &&
     data.address?.country
