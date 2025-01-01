@@ -2,8 +2,8 @@ import { useState } from 'react'
 import {
   Heart, LogIn, UserPlus, Eye, EyeOff,
   Mail, Lock, User, ArrowRight, Check,
-  Shield, Activity, Calendar, X, Sparkles
-} from 'lucide-react'
+  Shield, Activity, Calendar, X, Sparkles,
+  Phone} from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 
 const HeartbeatLine = ({ top, opacity = 1 }) => {
@@ -66,10 +66,17 @@ const AuthPage = ({ onComplete }) => {
     email: '',
     password: '',
     confirmPassword: '',
-    fullName: ''
+    fullName: '',
+    phoneNumber: ''
   })
   const [passwordsMatch, setPasswordsMatch] = useState(true)
   const [passwordError, setPasswordError] = useState('')
+  const [error, setError] = useState('');
+
+  const validatePhone = (phone) => {
+    const regex = /^[0-9]{10}$/; 
+    return regex.test(phone);
+  };
 
   const [floatingElements] = useState([...Array(12)].map((_, i) => ({
     id: i,
@@ -119,7 +126,6 @@ const AuthPage = ({ onComplete }) => {
       }
     }
 
-    // Clear any previous errors
     if (passwordError) {
       setPasswordError('');
     }
@@ -140,55 +146,108 @@ const AuthPage = ({ onComplete }) => {
 
   const isFormValid = () => {
     if (isLogin) {
-      return formData.email && formData.password && validateEmail(formData.email)
+      return formData.email && formData.password && validateEmail(formData.email);
     } else {
       return formData.email &&
         formData.password &&
         formData.confirmPassword &&
         passwordsMatch &&
         formData.fullName &&
-        validateEmail(formData.email)
+        validateEmail(formData.email) &&
+        validatePhone(formData.phoneNumber);
     }
-  }
+  };
+
+
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!isFormValid()) return
-
-    setIsLoading(true)
-
-    if (isLogin) {
-      // Handle login logic
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setFormComplete(true)
-      setTimeout(() => {
-        setIsLoading(false)
-        setFormComplete(false)
-        // Handle login success
-      }, 1000)
-    } else {
-      try {
-        // Handle signup with OTP
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        setFormComplete(true)
-        setTimeout(() => {
-          setIsLoading(false)
-          setFormComplete(false)
-          // Trigger OTP verification
-          onComplete(formData.email)
-        }, 1000)
-      } catch (error) {
-        setPasswordError('Something went wrong. Please try again.')
-        setIsLoading(false)
+    e.preventDefault();
+    if (!isFormValid()) return;
+  
+    setIsLoading(true);
+    setError('');
+  
+    try {
+      if (isLogin) {
+        try {
+          const response = await fetch('https://anochat.in/v1/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+            })
+          });
+  
+          const data = await response.json();
+  
+          if (data.success) {
+            setFormComplete(true);
+            localStorage.setItem('user', JSON.stringify(data.data.user));
+            setTimeout(() => {
+              setIsLoading(false);
+              setFormComplete(false);
+              // Navigate or handle success
+            }, 1000);
+          } else {
+            throw new Error(data.message || 'Login failed');
+          }
+        } catch (error) {
+          setError(error.message || 'Login failed. Please try again.');
+          setIsLoading(false);
+        }
+      } else {
+        try {
+          const response = await fetch('https://anochat.in/v1/auth/signup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: formData.fullName,
+              email: formData.email,
+              password: formData.password,
+              phone: formData.phoneNumber
+            })
+          });
+  
+          const data = await response.json();
+  
+          if (data.success) {
+            localStorage.setItem('user', JSON.stringify(data.data.user));
+            setFormComplete(true);
+            
+            setTimeout(() => {
+              setIsLoading(false);
+              setFormComplete(false);
+              onComplete(formData.email); // Trigger OTP verification
+            }, 1000);
+          } else {
+            throw new Error(data.message || 'Signup failed');
+          }
+        } catch (error) {
+          setError(error.message || 'Signup failed. Please try again.');
+          setIsLoading(false);
+        }
       }
+    } catch (error) {
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
     }
-  }
-
-  // Rest of your component's JSX remains the same until the form part
+  };
+  {error && (
+    <div className="text-red-500 bg-red-50 p-3 rounded-lg flex items-center gap-2 mb-4">
+      <X className="h-5 w-5" />
+      <span>{error}</span>
+    </div>
+  )}
+  
   return (
+    
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-teal-50 to-white overflow-hidden">
       <div className="min-h-screen flex flex-col lg:flex-row">
-        {/* Left side with animations */}
         <div className="lg:w-1/2 bg-gradient-to-br from-teal-600 via-blue-600 to-blue-700 p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute top-10 left-10">
@@ -215,7 +274,6 @@ const AuthPage = ({ onComplete }) => {
             <HeartbeatLine top="75%" opacity={2} />
           </div>
 
-          {/* Content section */}
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-12 group">
               <div className="relative">
@@ -303,7 +361,6 @@ const AuthPage = ({ onComplete }) => {
           </div>
         </div>
 
-        {/* Right side with form */}
         <div className="lg:w-1/2 p-8 lg:p-16 flex flex-col justify-center bg-white/80 backdrop-blur-lg">
           <div className="max-w-md mx-auto w-full">
             <div className="flex justify-between items-center mb-12">
@@ -318,7 +375,8 @@ const AuthPage = ({ onComplete }) => {
                     email: '',
                     password: '',
                     confirmPassword: '',
-                    fullName: ''
+                    fullName: '',
+                    phoneNumber: ''  
                   })
                 }}
                 className="text-teal-600 hover:text-teal-700 font-medium transform transition-all duration-300 hover:scale-105"
@@ -390,6 +448,33 @@ const AuthPage = ({ onComplete }) => {
                 </div>
               </div>
 
+              {!isLogin && (
+                <div className={`transform transition-all duration-300 ${activeField === 'phone' ? 'scale-105' : ''}`}>
+                  <label className="block text-base font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400" />
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleInputChange}
+                      className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-300"
+                      placeholder="Enter your phone number"
+                      onFocus={() => setActiveField('phone')}
+                      onBlur={() => setActiveField(null)}
+                    />
+                  </div>
+                  {formData.phoneNumber && !validatePhone(formData.phoneNumber) && (
+                    <div className="flex items-center gap-2 mt-2 text-red-500 text-sm">
+                      <X className="h-4 w-4" />
+                      Please enter a valid 10-digit phone number
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className={`transform transition-all duration-300 ${activeField === 'password' ? 'scale-105' : ''}`}>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-base font-medium text-gray-700">
@@ -397,9 +482,9 @@ const AuthPage = ({ onComplete }) => {
                   </label>
                   {isLogin && (
                     <button
-                    
+
                       type="button"
-                      onClick={() => {navigate('/forgot-password');}}
+                      onClick={() => { navigate('/forgot-password'); }}
                       className="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors duration-300 hover:underline">
                       Forgot Password?
                     </button>
