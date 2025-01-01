@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, ChevronRight, ChevronLeft, Activity, Heart,
   Phone, MapPin, AlertCircle, Calendar, Clock,
-  Plus, Minus, Check, ArrowRight, Sparkles, X
+  Plus, Minus, Check, ArrowRight, Sparkles, X,
+  House,
+  Building
 } from 'lucide-react';
 
 import BasicInfoStep from './basic_information';
@@ -24,7 +26,6 @@ export const FORM_STEPS = [
     component: BasicInfoStep,
     validateStep: (data) => {
       return Boolean(
-        data.fullName?.trim() &&
         data.dateOfBirth &&
         data.gender &&
         data.bloodType
@@ -33,15 +34,13 @@ export const FORM_STEPS = [
   },
   {
     id: 'contact',
-    title: 'Contact Details',
+    title: 'Adderess Details',
     subtitle: 'How can we reach you?',
-    icon: Phone,
+    icon: Building,
     required: true,
     component: ContactDetailsStep,
     validateStep: (data) => {
       return Boolean(
-        data.email?.trim() &&
-        data.phone?.trim() &&
         data.address?.street?.trim() &&
         data.address?.city?.trim() &&
         data.address?.country?.trim()
