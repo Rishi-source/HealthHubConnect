@@ -1,6 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="light">
   <head>
+    <script>
+      // Immediately set correct theme to avoid flash
+      if (localStorage.getItem('darkMode') === 'dark' ||
+          (!localStorage.getItem('darkMode') && 
+           window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <script src="https://cdn.tailwindcss.com"></script>

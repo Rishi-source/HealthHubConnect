@@ -75,8 +75,6 @@ const InputField = memo(({
 
 const ContactDetailsStep = ({ 
   data = {
-    email: '',
-    phone: '',
     address: {
       street: '',
       city: '',
@@ -93,15 +91,11 @@ const ContactDetailsStep = ({
   const [focusedField, setFocusedField] = useState(null);
   const [validationMessage, setValidationMessage] = useState(null);
 
-  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const PHONE_PATTERN = /^\+?[\d\s-]{10,}$/;
   const POSTAL_CODE_PATTERN = /^[A-Z\d]{3,10}$/i;
 
   const validateField = (name, value) => {
     if (!value?.trim()) {
-      if (name === 'email' || 
-          name === 'phone' || 
-          name === 'address.street' || 
+      if (name === 'address.street' || 
           name === 'address.city' || 
           name === 'address.country') {
         return `${name.split('.').pop().charAt(0).toUpperCase() + name.split('.').pop().slice(1)} is required`;
@@ -109,16 +103,6 @@ const ContactDetailsStep = ({
     }
 
     switch (name) {
-      case 'email':
-        if (!EMAIL_PATTERN.test(value)) {
-          return 'Please enter a valid email address';
-        }
-        break;
-      case 'phone':
-        if (!PHONE_PATTERN.test(value)) {
-          return 'Please enter a valid phone number';
-        }
-        break;
       case 'address.postalCode':
         if (value && !POSTAL_CODE_PATTERN.test(value)) {
           return 'Please enter a valid postal code';
@@ -181,14 +165,6 @@ const ContactDetailsStep = ({
     const newErrors = {};
     let hasErrors = false;
 
-    ['email', 'phone'].forEach(field => {
-      const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
-        hasErrors = true;
-      }
-    });
-
     ['street', 'city', 'state', 'postalCode', 'country'].forEach(field => {
       const error = validateField(`address.${field}`, formData.address?.[field]);
       if (error) {
@@ -214,40 +190,6 @@ const ContactDetailsStep = ({
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        <div className="space-y-6">
-          <InputField
-            icon={Mail}
-            label="Email Address"
-            name="email"
-            type="email"
-            value={data.email}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            error={errors.email}
-            touched={touched.email}
-            isFocused={focusedField === 'email'}
-            placeholder="Enter your email address"
-            required
-          />
-
-          <InputField
-            icon={Phone}
-            label="Phone Number"
-            name="phone"
-            type="tel"
-            value={data.phone}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            error={errors.phone}
-            touched={touched.phone}
-            isFocused={focusedField === 'phone'}
-            placeholder="Enter your phone number"
-            required
-          />
-        </div>
-
         <div className="bg-gray-50 p-6 rounded-xl space-y-6">
           <div className="flex items-center gap-2 text-gray-700 mb-4">
             <Home className="w-5 h-5" />
