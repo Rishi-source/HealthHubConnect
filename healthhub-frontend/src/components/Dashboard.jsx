@@ -17,7 +17,6 @@ const getColorClasses = (color) => {
   };
   
   
-// API fetch hook
 const useHealthData = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +25,6 @@ const useHealthData = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Replace with your actual API endpoint
       const response = await fetch('https://api.example.com/health-data');
       const jsonData = await response.json();
       setData(jsonData);
@@ -48,8 +46,6 @@ const useHealthData = () => {
   
   
   
-// Animated stat card component
-// Find and replace the existing StatCard component with this new one
 const StatCard = ({ label, value, icon: Icon, color, animate = true }) => (
     <motion.div
       initial={animate ? { scale: 0.95, opacity: 0 } : false}
@@ -87,7 +83,6 @@ const StatCard = ({ label, value, icon: Icon, color, animate = true }) => (
     </motion.div>
   );
 
-// Search bar component
 const SearchBar = () => (
   <div className="relative max-w-md">
     <input
@@ -103,7 +98,6 @@ const SearchBar = () => (
   </div>
 );
 
-// Loading spinner component
 const LoadingSpinner = () => (
   <motion.div
     animate={{ rotate: 360 }}
@@ -118,17 +112,14 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showNotifications, setShowNotifications] = useState(false);
   
-  // Use the health data hook
   const { data: healthData, loading, error, refetch } = useHealthData();
 
   const toggleDarkMode = () => {
     const root = document.documentElement;
     const newMode = !isDarkMode;
     
-    // Add animation class before toggling
     root.classList.add('transitioning-theme');
     
-    // Toggle dark mode
     if (newMode) {
       root.classList.remove('light');
       root.classList.add('dark');
@@ -137,29 +128,22 @@ const Dashboard = () => {
       root.classList.add('light');
     }
     
-    // Update state
     setIsDarkMode(newMode);
     
-    // Save preference
     localStorage.setItem('darkMode', newMode ? 'dark' : 'light');
     
-    // Remove animation class after transition
     setTimeout(() => {
       root.classList.remove('transitioning-theme');
     }, 300);
   };
   
-  // Update the initial theme effect
   useEffect(() => {
-    // Check saved preference or system preference
     const savedMode = localStorage.getItem('darkMode');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    // Set initial mode
     const initialMode = savedMode === 'dark' || (!savedMode && prefersDark);
     setIsDarkMode(initialMode);
     
-    // Update HTML classes
     const root = document.documentElement;
     if (initialMode) {
       root.classList.remove('light');
@@ -179,7 +163,6 @@ const Dashboard = () => {
     { id: 'settings', icon: Settings, label: 'Settings' }
   ];
 
-  // Mock data - replace with API data in production
   const appointments = [
     { id: 1, doctor: "Dr. Sarah Wilson", type: "General Checkup", date: "2024-01-15", time: "10:00 AM", status: "upcoming" },
     { id: 2, doctor: "Dr. Michael Chen", type: "Dental", date: "2024-01-18", time: "2:30 PM", status: "upcoming" },
@@ -192,7 +175,6 @@ const Dashboard = () => {
     { id: 3, name: "Park View Hospital", distance: "3.8 km", availability: "Closed" }
   ];
 
-  // Motion variants for animations
   const sidebarVariants = {
     open: { width: '16rem' },
     closed: { width: '5rem' }
@@ -206,7 +188,6 @@ const Dashboard = () => {
   return (
 <div className={`min-h-screen ${isDarkMode ? 'light' : ''}`}>
   <div className="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300">
-        {/* Sidebar */}
         <motion.aside 
           variants={sidebarVariants}
           animate={isSidebarOpen ? 'open' : 'closed'}
@@ -218,7 +199,6 @@ const Dashboard = () => {
             shadow-lg
           `}
         >
-          {/* Sidebar content remains the same but with enhanced animations */}
           <div className="p-4 flex items-center justify-between">
             <AnimatePresence>
               {isSidebarOpen && (
@@ -249,7 +229,6 @@ const Dashboard = () => {
             </motion.button>
           </div>
 
-          {/* Navigation Menu */}
           <nav className="mt-8">
             {MenuItems.map((item) => (
               <motion.button
@@ -281,13 +260,11 @@ const Dashboard = () => {
           </nav>
         </motion.aside>
 
-        {/* Main Content Area */}
         <motion.main
           animate={{ marginLeft: isSidebarOpen ? '16rem' : '5rem' }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
           className="transition-all duration-300"
         >
-          {/* Top Bar */}
           <div className="sticky top-0 z-20 p-4 bg-white dark:bg-gray-800 
             border-b dark:border-gray-700 border-gray-200
             backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90">
@@ -346,7 +323,6 @@ const Dashboard = () => {
                   />
                 </motion.button>
 
-                {/* Notifications dropdown */}
                 <AnimatePresence>
                   {showNotifications && (
                     <motion.div
@@ -356,7 +332,6 @@ const Dashboard = () => {
                       className="absolute right-4 top-16 w-80 bg-white dark:bg-gray-800 
                         rounded-xl shadow-lg border dark:border-gray-700 z-50"
                     >
-                      {/* Add notifications content here */}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -364,9 +339,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Dashboard Content */}
           <div className="p-6">
-            {/* Stats Grid */}
             <motion.div
               variants={{
                 hidden: { opacity: 0 },
@@ -407,9 +380,7 @@ const Dashboard = () => {
               />
                 </motion.div>
 
-              {/* Appointments and Hospitals Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Appointments Card */}
               <motion.div
                 variants={fadeInUpVariants}
                 initial="hidden"
@@ -491,7 +462,6 @@ const Dashboard = () => {
                 </div>
               </motion.div>
 
-              {/* Hospitals Card */}
               <motion.div
                 variants={fadeInUpVariants}
                 initial="hidden"
@@ -574,7 +544,6 @@ const Dashboard = () => {
               </motion.div>
             </div>
 
-            {/* Health Summary Section */}
             <motion.div
               variants={fadeInUpVariants}
               initial="hidden"
@@ -588,7 +557,6 @@ const Dashboard = () => {
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Latest Vitals */}
                 <HealthCard
                   title="Latest Vitals"
                   icon={Activity}
@@ -600,7 +568,6 @@ const Dashboard = () => {
                   ]}
                 />
 
-                {/* Current Medications */}
                 <HealthCard
                   title="Current Medications"
                   icon={Heart}
@@ -612,7 +579,6 @@ const Dashboard = () => {
                   isCompact
                 />
 
-                {/* Upcoming Tests */}
                 <HealthCard
                   title="Upcoming Tests"
                   icon={FileText}
@@ -626,7 +592,6 @@ const Dashboard = () => {
               </div>
             </motion.div>
 
-            {/* API Data Section */}
             <motion.div
               variants={fadeInUpVariants}
               initial="hidden"
@@ -674,7 +639,6 @@ const Dashboard = () => {
         </motion.main>
       </div>
 
-      {/* Theme transition styles */}
       <style jsx global>{`
         .transitioning-theme * {
           transition: background-color 0.3s ease-in-out,
@@ -687,7 +651,6 @@ const Dashboard = () => {
   );
 };
 
-// Health Card Component
 const HealthCard = ({ title, icon: Icon, data, isCompact }) => (
   <motion.div
     whileHover={{ scale: 1.02 }}
