@@ -120,6 +120,8 @@ const Dashboard = () => {
     
     root.classList.add('transitioning-theme');
     
+    root.classList.add('transitioning-theme');
+    
     if (newMode) {
       root.classList.remove('light');
       root.classList.add('dark');
@@ -132,12 +134,24 @@ const Dashboard = () => {
     
     localStorage.setItem('darkMode', newMode ? 'dark' : 'light');
     
+    setIsDarkMode(newMode);
+    
+    localStorage.setItem('darkMode', newMode ? 'dark' : 'light');
+    
     setTimeout(() => {
       root.classList.remove('transitioning-theme');
     }, 300);
   };
   
   useEffect(() => {
+    const savedMode = localStorage.getItem('darkMode');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    const initialMode = savedMode === 'dark' || (!savedMode && prefersDark);
+    setIsDarkMode(initialMode);
+    
+  useEffect(() => {
+    // Check saved preference or system preference
     const savedMode = localStorage.getItem('darkMode');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
@@ -163,6 +177,7 @@ const Dashboard = () => {
     { id: 'settings', icon: Settings, label: 'Settings' }
   ];
 
+  // Mock data - replace with API data in production
   const appointments = [
     { id: 1, doctor: "Dr. Sarah Wilson", type: "General Checkup", date: "2024-01-15", time: "10:00 AM", status: "upcoming" },
     { id: 2, doctor: "Dr. Michael Chen", type: "Dental", date: "2024-01-18", time: "2:30 PM", status: "upcoming" },
@@ -228,7 +243,6 @@ const Dashboard = () => {
               }
             </motion.button>
           </div>
-
           <nav className="mt-8">
             {MenuItems.map((item) => (
               <motion.button
@@ -339,6 +353,7 @@ const Dashboard = () => {
             </div>
           </div>
 
+]          <div className="p-6">
           <div className="p-6">
             <motion.div
               variants={{
@@ -380,6 +395,7 @@ const Dashboard = () => {
               />
                 </motion.div>
 
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <motion.div
                 variants={fadeInUpVariants}
