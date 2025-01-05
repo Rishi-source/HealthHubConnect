@@ -1,24 +1,28 @@
 package v1
 
 import (
+	"HealthHubConnect/internal/handlers"
+	"HealthHubConnect/internal/repositories"
+	"HealthHubConnect/internal/services"
 	"HealthHubConnect/pkg/middleware"
-	"fmt"
-	"net/http"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
 
 func ResgisterHealthRoutes(router *mux.Router, db *gorm.DB) {
-	// healthRepo := repositories.NewHealthRepository(db)
-	// healthService := services.NewHealthService(healthRepo)
-	// healthHandler := handlers.NewHealthHandler(healthService)
+	// Initialize dependencies
+	healthRepo := repositories.NewHealthRepository(db)
+	healthService := services.NewHealthService(healthRepo)
+	healthHandler := handlers.NewHealthHandler(healthService)
 
-	p := router.PathPrefix("/protected").Subrouter()
+	// Create a subrouter for protected routes
+	p := router.PathPrefix("/health").Subrouter()
 	p.Use(middleware.AuthMiddleware)
 
-	p.HandleFunc("", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "authorized")
-	})
-	// p.HandleFunc("/health-profile", healthHandler.GetHealthProfile).Methods("GET")
+	// Register health profile routes
+	p.HandleFunc("/profile", healthHandler.CreateHealthProfile).Methods("POST")
+	p.HandleFunc("/profile", healthHandler.GetHealthProfile).Methods("GET")
+	p.HandleFunc("/profile", healthHandler.UpdateHealthProfile).Methods("PUT")
+	p.HandleFunc("/profile", healthHandler.DeleteHealthProfile).Methods("DELETE")
 }

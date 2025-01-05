@@ -2,6 +2,27 @@ package models
 
 import "time"
 
+type HealthProfile struct {
+	Base
+	UserID            uint               `json:"user_id" gorm:"uniqueIndex"`
+	DateOfBirth       time.Time          `json:"date_of_birth"`
+	Gender            string             `json:"gender"`
+	BloodType         string             `json:"blood_type"`
+	Height            float64            `json:"height"`
+	Weight            float64            `json:"weight"`
+	Street            string             `json:"street"`
+	City              string             `json:"city"`
+	State             string             `json:"state"`
+	PostalCode        string             `json:"postal_code"`
+	Country           string             `json:"country"`
+	LastUpdated       time.Time          `json:"last_updated"`
+	Version           string             `json:"version"`
+	EmergencyContacts []EmergencyContact `json:"emergency_contacts" gorm:"foreignKey:UserID"`
+	Allergy           []Allergy          `json:"allergies" gorm:"foreignKey:UserID"`
+	Medication        []Medication       `json:"medications" gorm:"foreignKey:UserID"`
+	VitalSign         []VitalSign        `json:"vital_signs" gorm:"foreignKey:UserID"`
+}
+
 type EmergencyContact struct {
 	Base
 	UserID         uint      `json:"user_id" gorm:"not null;index"`
@@ -14,7 +35,6 @@ type EmergencyContact struct {
 	IsMainContact  bool      `json:"is_main_contact" gorm:"default:false"`
 	LastVerifiedAt time.Time `json:"last_verified_at"`
 	Notes          string    `json:"notes" gorm:"size:500"`
-	User           User      `json:"-" gorm:"foreignKey:UserID"`
 }
 
 type Allergy struct {
@@ -34,7 +54,6 @@ type Allergy struct {
 	LastVerifiedAt   time.Time  `json:"last_verified_at"`
 	IsActive         bool       `json:"is_active" gorm:"default:true"`
 	Notes            string     `json:"notes" gorm:"size:1000"`
-	User             User       `json:"-" gorm:"foreignKey:UserID"`
 }
 
 type Medication struct {
@@ -63,41 +82,6 @@ type Medication struct {
 	TakeWithFood        bool       `json:"take_with_food"`
 	SpecialInstructions string     `json:"special_instructions" gorm:"size:500"`
 	Notes               string     `json:"notes" gorm:"size:1000"`
-	User                User       `json:"-" gorm:"foreignKey:UserID"`
-}
-
-type PastMedication struct {
-	Base
-	UserID        uint      `json:"user_id" gorm:"not null;index"`
-	Name          string    `json:"name" gorm:"size:200;not null;index"`
-	GenericName   string    `json:"generic_name" gorm:"size:200"`
-	BrandName     string    `json:"brand_name" gorm:"size:200"`
-	Dosage        string    `json:"dosage" gorm:"size:50;not null"`
-	DosageUnit    string    `json:"dosage_unit" gorm:"size:20;not null"`
-	Frequency     string    `json:"frequency" gorm:"size:100;not null"`
-	RouteOfAdmin  string    `json:"route_of_admin" gorm:"size:50"`
-	StartDate     time.Time `json:"start_date" gorm:"not null"`
-	EndDate       time.Time `json:"end_date" gorm:"not null"`
-	Condition     string    `json:"condition" gorm:"size:200"`
-	PrescribedBy  string    `json:"prescribed_by" gorm:"size:100"`
-	StopReason    string    `json:"stop_reason" gorm:"size:200"`
-	Effectiveness string    `json:"effectiveness" gorm:"size:50"`
-	SideEffects   string    `json:"side_effects" gorm:"size:500"`
-	Notes         string    `json:"notes" gorm:"size:1000"`
-	User          User      `json:"-" gorm:"foreignKey:UserID"`
-}
-
-type PhysicalAttributes struct {
-	Height float64 `json:"height"`
-	Weight float64 `json:"weight"`
-}
-
-type Address struct {
-	Street     string `json:"street"`
-	City       string `json:"city"`
-	State      string `json:"state"`
-	PostalCode string `json:"postalCode"`
-	Country    string `json:"country"`
 }
 
 type VitalSign struct {
@@ -108,28 +92,4 @@ type VitalSign struct {
 	Systolic  string    `json:"systolic,omitempty"`  // for blood pressure
 	Diastolic string    `json:"diastolic,omitempty"` // for blood pressure
 	Timestamp time.Time `json:"timestamp" gorm:"not null"`
-	User      User      `json:"-" gorm:"foreignKey:UserID"`
 }
-
-type HealthProfile struct {
-	Base
-	UserID      uint      `json:"user_id" gorm:"not null;uniqueIndex"`
-	FullName    string    `json:"full_name"`
-	DateOfBirth time.Time `json:"date_of_birth"`
-	Gender      string    `json:"gender"`
-	BloodType   string    `json:"blood_type"`
-	Height      float64   `json:"height"`
-	Weight      float64   `json:"weight"`
-	Email       string    `json:"email"`
-	Phone       string    `json:"phone"`
-	Street      string    `json:"street"`
-	City        string    `json:"city"`
-	State       string    `json:"state"`
-	PostalCode  string    `json:"postal_code"`
-	Country     string    `json:"country"`
-	LastUpdated time.Time `json:"last_updated"`
-	Version     string    `json:"version"`
-	User        User      `json:"-" gorm:"foreignKey:UserID"`
-}
-
-// Index methods remain unchanged...

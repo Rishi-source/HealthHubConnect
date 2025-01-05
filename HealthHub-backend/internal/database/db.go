@@ -2,7 +2,6 @@ package database
 
 import (
 	"HealthHubConnect/internal/models"
-	"context"
 	"database/sql"
 	"errors"
 
@@ -10,67 +9,36 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
-var sqlDB *sql.DB
+var (
+	db    *gorm.DB
+	sqlDB *sql.DB
+)
 
-// Models to migrate - add new models here
-var model = []interface{}{
+var modelsToMigrate = []interface{}{
 	&models.User{},
+	&models.OAuthAccount{},
 	&models.LoginAttempt{},
-	// &models.OAuthAccount{},
+	&models.HealthProfile{},
 	&models.EmergencyContact{},
 	&models.Allergy{},
 	&models.Medication{},
-	&models.PastMedication{},
-	&models.HealthProfile{},
 	&models.VitalSign{},
 }
 
-func InitDB() (*gorm.DB, error) {
-	dbPath := "healthhub.db"
+func InitDB() error {
 	var err error
-
-	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+	db, err = gorm.Open(sqlite.Open("healthhub.db"), &gorm.Config{
 		PrepareStmt: true,
 	})
 	if err != nil {
-		return nil, err
-	}
-
-	// Run migrations immediately after db connection
-	if err := autoMigrate(); err != nil {
-		return nil, err
-	}
-
-	sqlDB, err = db.DB()
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
-}
-
-func autoMigrate() error {
-	for _, model := range model {
-		if err := db.AutoMigrate(model); err != nil {
-			return err
-		}
-	}
-
-	return createIndexes()
-}
-
-// createIndexes creates database indexes
-func createIndexes() error {
-	// User related indexes
-	if err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)`).Error; err != nil {
-		return err
-	}
-	if err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_users_is_active ON users (is_active)`).Error; err != nil {
 		return err
 	}
 
-	return nil
+	if sqlDB, err = db.DB(); err != nil {
+		return err
+	}
+
+	return db.AutoMigrate(modelsToMigrate...)
 }
 
 func Close() error {
@@ -80,14 +48,16 @@ func Close() error {
 	return nil
 }
 
-func GetDB() *gorm.DB {
-	return db
+func GetDB() (*gorm.DB, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+	return db, nil
 }
 
-// to check health of the database returns nil if the database is healthy, error otherwise
-func HealthCheck(ctx context.Context) error {
+func HealthCheck() error {
 	if sqlDB == nil {
-		return errors.New("database connection not initialized")
+		return errors.New("database not initialized")
 	}
-	return sqlDB.PingContext(ctx)
+	return sqlDB.Ping()
 }

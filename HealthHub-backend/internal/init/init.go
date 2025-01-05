@@ -25,7 +25,8 @@ func Init() error {
 	var err error
 	Loggers = logger.InitializeLogger(env.Logger)
 
-	db, err := database.InitDB()
+	database.InitDB()
+	db, err := database.GetDB()
 	if err != nil {
 		Loggers.DBLogger.Error().Err(err).Msg("Failed to initialize database")
 		return err

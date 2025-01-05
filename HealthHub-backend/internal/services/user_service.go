@@ -35,24 +35,19 @@ func NewUserService(userRepo *repositories.UserRepository) *UserService {
 }
 
 func (s *UserService) CreateUser(ctx context.Context, name, email, password string, phone int64) (*models.User, error) {
-
 	existingUser, err := s.userRepo.FindByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		return nil, e.NewDuplicateResourceError(email)
 	}
-
-	// Validate inputs
 	if err := utils.ValidateEmail(email); err != nil {
 		return nil, fmt.Errorf("invalid email: %w", err)
 	}
-
 	if err := utils.ValidatePassword(password); err != nil {
 		return nil, fmt.Errorf("invalid password: %w", err)
 	}
 	if err := utils.ValidatePhone(phone); err != nil {
 		return nil, fmt.Errorf("invalid phone: %w", err)
 	}
-
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		log.Printf("Error hashing password: %v", err)
@@ -66,9 +61,32 @@ func (s *UserService) CreateUser(ctx context.Context, name, email, password stri
 		Phone:        phone,
 	}
 
+	resetOTP := utils.GenerateResetOTP()
+	user.ResetToken = resetOTP
+	user.ResetTokenExpiry = time.Now().Add(24 * time.Hour)
+
 	if err := s.userRepo.CreateUser(user, ctx); err != nil {
 		log.Printf("Error creating user: %v", err)
 		return nil, err
+	}
+
+	// Send verification email with OTP
+	subject := "Email Verification OTP - HealthHub"
+	body := fmt.Sprintf(`Dear %s,
+
+Welcome to HealthHub! Please verify your email using the following OTP:
+
+%s
+
+This OTP will expire in 24 Hours.
+
+For security reasons, DO NOT share this OTP with anyone.
+
+Best regards,
+HealthHub Team`, user.Name, resetOTP)
+
+	if err := utils.SendEmail(email, subject, body); err != nil {
+		log.Printf("Failed to send verification email: %v", err)
 	}
 
 	user.PasswordHash = ""
@@ -119,6 +137,30 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*model
 
 	user.PasswordHash = ""
 	return user, tokenPair, nil
+}
+
+func (s *UserService) VerifyOTP(ctx context.Context, email, otp string) error {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return e.NewValidationError("invalid email")
+	}
+	if len(otp) != 6 || !utils.IsNumeric(otp) {
+		return e.NewValidationError("invalid OTP format - must be 6 digits")
+	}
+
+	if user.ResetToken != otp {
+		return e.NewValidationError("invalid OTP")
+	}
+
+	if time.Now().After(user.ResetTokenExpiry) {
+		return e.NewValidationError("OTP has expired")
+	}
+
+	user.EmailVerified = true
+	user.ResetToken = ""
+	user.ResetTokenExpiry = time.Time{}
+
+	return s.userRepo.UpdateUser(user, ctx)
 }
 
 func (s *UserService) ForgotPassword(ctx context.Context, email string) error {

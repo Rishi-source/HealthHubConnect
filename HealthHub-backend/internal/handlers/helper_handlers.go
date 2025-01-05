@@ -14,25 +14,19 @@ import (
 
 // ParseRequestBody parses and validates JSON request body
 func ParseRequestBody(w http.ResponseWriter, r *http.Request, dst interface{}) error {
-	// Check content type
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 		return e.NewValidationError("Content-Type must be application/json")
 	}
 
-	// Check if body is empty
 	if r.Body == nil {
 		return e.NewValidationError("request body is empty")
 	}
 
-	// Set max body size
-	r.Body = http.MaxBytesReader(w, r.Body, 1048576) // 1MB limit
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 
-	// Create decoder with strict settings
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-
-	// Attempt to decode
 	if err := dec.Decode(dst); err != nil {
 		switch {
 		case err.Error() == "EOF":
@@ -46,8 +40,6 @@ func ParseRequestBody(w http.ResponseWriter, r *http.Request, dst interface{}) e
 			return e.NewInvalidJsonError()
 		}
 	}
-
-	// Check for additional data
 	if dec.More() {
 		return e.NewValidationError("request body must only contain one JSON object")
 	}
@@ -68,11 +60,8 @@ func getRequiredFields(dst interface{}) []string {
 		if jsonTag == "" || jsonTag == "-" {
 			continue
 		}
-
-		// Remove omitempty from json tag if present
 		jsonName := strings.Split(jsonTag, ",")[0]
 
-		// Check if field is required in validate tag
 		if strings.Contains(validate, "required") {
 			required = append(required, jsonName)
 		}

@@ -45,3 +45,10 @@ type MailConfig struct {
 	MailUsername string
 	MailPassword string
 }
+
+type CorsConfig struct {
+	AllowedOrigins []string
+	AllowedMethods []string
+	AllowedHeaders []string
+	MaxAge         int
+}

@@ -13,25 +13,23 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			response := e.CustomError{
-				Message:    "Authorization Header required",
-				ErrorCode:  "MISSING_AUTH_HEADER",
-				StatusCode: http.StatusUnauthorized,
-			}
-			http.Error(w, response.Message, response.StatusCode)
+			err := e.NewNotAuthorizedError("missing authorization header")
+			http.Error(w, err.Error(), err.StatusCode)
 			return
 		}
 
 		tokenParts := strings.Split(authHeader, " ")
 		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			http.Error(w, "Unauthorized: Invalid Token Format", http.StatusUnauthorized)
+			err := e.NewNotAuthorizedError("invalid token format")
+			http.Error(w, err.Error(), err.StatusCode)
 			return
 		}
 
 		token := tokenParts[1]
 		claims, err := utils.ValidateToken(token, env.Jwt.AccessTokenSecret, utils.AccessToken)
 		if err != nil {
-			http.Error(w, "Invalid Token", http.StatusUnauthorized)
+			authErr := e.NewNotAuthorizedError("invalid token")
+			http.Error(w, authErr.Error(), authErr.StatusCode)
 			return
 		}
 

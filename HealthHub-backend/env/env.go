@@ -3,6 +3,7 @@ package env
 import (
 	"HealthHubConnect/config"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -10,12 +11,15 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+// Make sure NO sensitive data is in this file
+// All sensitive data should be in .env only
+
 // database configurations
 var dsnConfig = config.DBConfig{
-	Host:     "localhost",
-	User:     "ujjwal",
-	Password: "password",
-	Dbname:   "user_services",
+	Host:     os.Getenv("DB_HOST"),
+	User:     os.Getenv("DB_USER"),
+	Password: os.Getenv("DB_PASSWORD"),
+	Dbname:   os.Getenv("DB_NAME"),
 	Port:     5432,
 	Sslmode:  "disable",
 	TimeZone: "Asia/Kolkata",
@@ -32,7 +36,7 @@ var (
 // Server configurations
 
 var (
-	// ServerPort defines the port on which the server will listen
+	// ServerPort defines the port on which he server will listen
 	port       = 8081
 	ServerPort = fmt.Sprint(":", port)
 )
@@ -64,16 +68,28 @@ var Hash = config.HashConfig{
 }
 
 var Mail = config.MailConfig{
-	SmtpHost:     "smtppro.zoho.in",
-	SmtpPort:     "465", // Use "465"
-	MailUsername: "ujjwal@anochat.in",
-	MailPassword: "7tuzVskvEvbN",
+	SmtpHost:     os.Getenv("SMTP_HOST"),
+	SmtpPort:     os.Getenv("SMTP_PORT"),
+	MailUsername: os.Getenv("MAIL_USERNAME"),
+	MailPassword: os.Getenv("MAIL_PASSWORD"),
+}
+
+type Config struct {
+	GoogleClientID     string
+	GoogleClientSecret string
+}
+
+func NewConfig() *Config {
+	return &Config{
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	}
 }
 
 var (
 	GoogleOAuthConfig = &oauth2.Config{
-		ClientID:     "YOUR_GOOGLE_CLIENT_ID",
-		ClientSecret: "YOUR_GOOGLE_CLIENT_SECRET",
+		ClientID:     NewConfig().GoogleClientID,
+		ClientSecret: NewConfig().GoogleClientSecret,
 		RedirectURL:  "http://localhost:8081/api/v1/auth/google/callback",
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
@@ -83,6 +99,14 @@ var (
 	}
 	OAuthStateString = "random-string" // In production, generate this dynamically for each request
 )
+
+// CORS configurations
+var Cors = config.CorsConfig{
+	AllowedOrigins: []string{"*"},
+	AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+	MaxAge:         300, // 5 minutes
+}
 
 //in production set these variable private and add getter functions
 

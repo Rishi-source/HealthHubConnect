@@ -39,6 +39,11 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" validate:"required,min=8"`
 }
 
+type VerifyOTPRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	OTP   string `json:"otp" validate:"required"`
+}
+
 func (h *UserHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := ParseRequestBody(w, r, &req); err != nil {
@@ -55,6 +60,25 @@ func (h *UserHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 	GenerateResponse(&w, http.StatusCreated, map[string]interface{}{
 		"user": user,
+	})
+}
+
+func (h *UserHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
+	var req VerifyOTPRequest
+	if err := ParseRequestBody(w, r, &req); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	ctx := r.Context()
+	err := h.userService.VerifyOTP(ctx, req.Email, req.OTP)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"message": "email verified",
 	})
 }
 

@@ -20,6 +20,7 @@ func RegisterAuthRoutes(router *mux.Router, db *gorm.DB) {
 
 	// Auth routes
 	router.HandleFunc("/auth/signup", authHandler.Signup).Methods("POST")
+	router.HandleFunc("/auth/verify-otp", authHandler.VerifyOTP).Methods("POST")
 	router.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
 	// router.HandleFunc("/auth/logout", authHandler.Logout).Methods("POST")
 	router.HandleFunc("/auth/refresh", authHandler.RefreshToken).Methods("GET")
