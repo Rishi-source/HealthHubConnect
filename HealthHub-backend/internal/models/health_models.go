@@ -21,6 +21,7 @@ type HealthProfile struct {
 	Allergy           []Allergy          `json:"allergies" gorm:"foreignKey:UserID"`
 	Medication        []Medication       `json:"medications" gorm:"foreignKey:UserID"`
 	VitalSign         []VitalSign        `json:"vital_signs" gorm:"foreignKey:UserID"`
+	DeletedAt         time.Time          `json:"deleted_at"`
 }
 
 type EmergencyContact struct {

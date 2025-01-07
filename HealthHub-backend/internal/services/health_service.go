@@ -49,3 +49,35 @@ func (s *HealthService) UpdateHealthProfile(ctx context.Context, profile *models
 func (s *HealthService) DeleteHealthProfile(ctx context.Context, userID uint) error {
 	return s.healthRepo.DeleteHealthProfile(ctx, userID)
 }
+
+func (s *HealthService) CreateVitalSign(ctx context.Context, vitalSign *models.VitalSign) error {
+	if vitalSign.UserID == 0 {
+		return e.NewValidationError("user ID is required")
+	}
+
+	return s.healthRepo.CreateVitalSign(ctx, vitalSign)
+}
+
+func (s *HealthService) GetVitalSign(ctx context.Context, userID uint) ([]models.VitalSign, error) {
+	vitalSigns, err := s.healthRepo.GetVitalSigns(ctx, userID)
+	if err != nil {
+		return nil, e.NewObjectNotFoundError("vital signs")
+	}
+	return vitalSigns, nil
+}
+
+func (s *HealthService) CreateMedication(ctx context.Context, medication *models.Medication) error {
+	if medication.UserID == 0 {
+		return e.NewValidationError("user ID is required")
+	}
+
+	return s.healthRepo.CreateMedication(ctx, medication)
+}
+
+func (s *HealthService) GetMedications(ctx context.Context, userID uint) ([]models.Medication, error) {
+	medications, err := s.healthRepo.GetMedications(ctx, userID)
+	if err != nil {
+		return nil, e.NewObjectNotFoundError("medications")
+	}
+	return medications, nil
+}

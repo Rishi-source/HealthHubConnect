@@ -16,6 +16,5 @@ func SetupRoutes(router *mux.Router, db *gorm.DB) {
 	// sub router for v1 routes
 	v1Router := router.PathPrefix("/v1").Subrouter()
 
-	//v1 routes
 	v1.RegisterRoutes(v1Router, db)
 }

@@ -58,9 +58,46 @@ func (r *HealthRepository) UpdateHealthProfile(ctx context.Context, profile *mod
 }
 
 func (r *HealthRepository) DeleteHealthProfile(ctx context.Context, userID uint) error {
-	result := r.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.HealthProfile{})
+	result := r.db.WithContext(ctx).
+		Model(&models.HealthProfile{}).
+		Where("user_id = ?", userID).
+		Update("deleted_at", gorm.DeletedAt{})
 	if result.Error != nil {
 		return e.NewWrapperError(result.Error)
 	}
 	return nil
+}
+
+func (r *HealthRepository) CreateVitalSign(ctx context.Context, vitalSign *models.VitalSign) error {
+	result := r.db.WithContext(ctx).Create(vitalSign)
+	if result.Error != nil {
+		return e.NewWrapperError(result.Error)
+	}
+	return nil
+}
+
+func (r *HealthRepository) GetVitalSigns(ctx context.Context, userID uint) ([]models.VitalSign, error) {
+	var vitalSigns []models.VitalSign
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&vitalSigns).Error
+	if err != nil {
+		return nil, e.NewWrapperError(err)
+	}
+	return vitalSigns, nil
+}
+
+func (r *HealthRepository) CreateMedication(ctx context.Context, medication *models.Medication) error {
+	result := r.db.WithContext(ctx).Create(medication)
+	if result.Error != nil {
+		return e.NewWrapperError(result.Error)
+	}
+	return nil
+}
+
+func (r *HealthRepository) GetMedications(ctx context.Context, userID uint) ([]models.Medication, error) {
+	var medications []models.Medication
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&medications).Error
+	if err != nil {
+		return nil, e.NewWrapperError(err)
+	}
+	return medications, nil
 }

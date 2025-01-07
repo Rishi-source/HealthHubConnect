@@ -1,0 +1,77 @@
+type Location {
+  latitude: Float!
+  longitude: Float!
+}
+
+type Speciality {
+  id: ID!
+  name: String!
+}
+
+type Hospital {
+  id: ID!
+  name: String!
+  address: String!
+  location: Location!
+  phoneNumber: String!
+  rating: Float
+  services: [String!]
+  isOpen: Boolean!
+  distance: Float
+  hasEmergency: Boolean!
+  specialities: [Speciality!]
+  googlePlaceID: String
+  openingHours: [String!]
+}
+
+input LocationInput {
+  latitude: Float!
+  longitude: Float!
+}
+
+input HospitalFilters {
+  radius: Float!
+  isOpen: Boolean
+  hasEmergency: Boolean
+  specialities: [String!]
+  minRating: Float
+}
+
+type Query {
+  hospitals(
+    location: LocationInput!, 
+    filters: HospitalFilters!
+  ): [Hospital!]!
+  
+  hospital(id: ID!): Hospital
+  
+  searchHospitals(
+    query: String!
+    location: LocationInput
+    filters: HospitalFilters
+  ): [Hospital!]!
+}
+
+type Mutation {
+  addHospital(
+    name: String!
+    address: String!
+    location: LocationInput!
+    phoneNumber: String!
+    services: [String!]
+    hasEmergency: Boolean!
+    specialities: [String!]
+    googlePlaceID: String
+  ): Hospital!
+  
+  updateHospital(
+    id: ID!
+    name: String
+    address: String
+    location: LocationInput
+    phoneNumber: String
+    services: [String!]
+    hasEmergency: Boolean
+    specialities: [String!]
+  ): Hospital!
+}

@@ -111,3 +111,79 @@ func (h *HealthHandler) DeleteHealthProfile(w http.ResponseWriter, r *http.Reque
 		"message": "health profile deleted successfully",
 	})
 }
+
+func (h *HealthHandler) CreateVitalSign(w http.ResponseWriter, r *http.Request) {
+	var vitalSign models.VitalSign
+	if err := ParseRequestBody(w, r, &vitalSign); err != nil {
+		GenerateErrorResponse(&w, e.NewInvalidJsonError())
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError(""))
+		return
+	}
+	vitalSign.UserID = userID
+
+	if err := h.healthService.CreateVitalSign(r.Context(), &vitalSign); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusCreated, vitalSign)
+}
+
+func (h *HealthHandler) GetVitalSigns(w http.ResponseWriter, r *http.Request) {
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	vitalSigns, err := h.healthService.GetVitalSign(r.Context(), userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, vitalSigns)
+}
+
+func (h *HealthHandler) CreateMedication(w http.ResponseWriter, r *http.Request) {
+	var medication models.Medication
+	if err := ParseRequestBody(w, r, &medication); err != nil {
+		GenerateErrorResponse(&w, e.NewInvalidJsonError())
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError(""))
+		return
+	}
+	medication.UserID = userID
+
+	if err := h.healthService.CreateMedication(r.Context(), &medication); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusCreated, medication)
+}
+
+func (h *HealthHandler) GetMedications(w http.ResponseWriter, r *http.Request) {
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	medications, err := h.healthService.GetMedications(r.Context(), userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, medications)
+}

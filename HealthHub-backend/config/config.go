@@ -52,3 +52,14 @@ type CorsConfig struct {
 	AllowedHeaders []string
 	MaxAge         int
 }
+
+type GoogleMapsConfig struct {
+	APIKey              string
+	PlacesAPIEnabled    bool
+	GeocodingAPIEnabled bool
+	DistanceAPIEnabled  bool
+	RegionCode          string
+	Language            string
+	RequestTimeout      time.Duration
+	MaxRetries          int
+}

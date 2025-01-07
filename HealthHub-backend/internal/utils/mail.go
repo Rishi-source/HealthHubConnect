@@ -15,6 +15,8 @@ func SendEmail(to string, subject string, bodyContent string) error {
 	username := env.Mail.MailUsername
 	password := env.Mail.MailPassword
 
+	// fmt.Println("smtpHost: ", smtpHost, "smtpPort: ", smtpPort, "username: ", username, "password: ", password)
+
 	// Configure TLS
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,

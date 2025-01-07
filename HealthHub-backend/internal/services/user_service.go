@@ -293,3 +293,43 @@ func (s *UserService) getGoogleUserInfo(accessToken string) (*GoogleUserInfo, er
 
 	return &userInfo, nil
 }
+
+func (s *UserService) ResendOTP(ctx context.Context, email string) error {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return e.NewValidationError("email not found")
+	}
+
+	if user.EmailVerified {
+		return e.NewValidationError("email already verified")
+	}
+
+	resetOTP := utils.GenerateResetOTP()
+	user.ResetToken = resetOTP
+	user.ResetTokenExpiry = time.Now().Add(24 * time.Hour)
+
+	if err := s.userRepo.UpdateUser(user, ctx); err != nil {
+		return e.NewInternalError()
+	}
+
+	// resend verification email with OTP
+	subject := "Email Verification OTP - HealthHub"
+	body := fmt.Sprintf(`Dear %s,
+
+Welcome to HealthHub! Please verify your email using the following OTP:
+
+%s
+
+This OTP will expire in 24 Hours.
+
+For security reasons, DO NOT share this OTP with anyone.
+
+Best regards,
+HealthHub Team`, user.Name, resetOTP)
+
+	if err := utils.SendEmail(email, subject, body); err != nil {
+		return fmt.Errorf("failed to send verification email: %v", err)
+	}
+
+	return nil
+}

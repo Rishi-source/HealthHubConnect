@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"html/template"
 	"net/http"
+	"path/filepath"
 
 	"HealthHubConnect/env"
 	e "HealthHubConnect/internal/errors"
@@ -168,21 +170,60 @@ func (h *UserHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	if state != env.OAuthStateString {
-		GenerateErrorResponse(&w, e.NewValidationError("invalid oauth state"))
+		http.Redirect(w, r, "/callback.html?error=invalid_state", http.StatusTemporaryRedirect)
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	ctx := r.Context()
 
-	user, tokens, err := h.userService.HandleGoogleCallback(ctx, code)
+	_, tokens, err := h.userService.HandleGoogleCallback(ctx, code)
 	if err != nil {
+		http.Redirect(w, r, "/callback.html?error="+err.Error(), http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Get the absolute path to the callback.html file
+	htmlPath := filepath.Join("public", "callback.html")
+	tmpl, err := template.ParseFiles(htmlPath)
+	if err != nil {
+		http.Error(w, "Template not found", http.StatusInternalServerError)
+		return
+	}
+
+	// Set content type
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Execute template with the token
+	data := struct {
+		Token string
+		Error string
+	}{
+		Token: tokens.AccessToken,
+		Error: "",
+	}
+
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *UserHandler) ResendOTP(w http.ResponseWriter, r *http.Request) {
+	var req ForgotPasswordRequest
+	if err := ParseRequestBody(w, r, &req); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
-		"user":   user,
-		"tokens": tokens,
+	ctx := r.Context()
+	if err := h.userService.ResendOTP(ctx, req.Email); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"message": "otp resent",
 	})
 }
