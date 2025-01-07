@@ -183,16 +183,14 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
   };
   const verifyOTP = async (otpCode) => {
     try {
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+      const response = await fetch('https://anochat.in/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email,
+          email: email,
           otp: otpCode,
-          type: 'verify_otp',
-          timestamp: new Date().toISOString()
         })
       });
   
@@ -211,15 +209,13 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
   };
   const resendOTP = async () => {
     try {
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+      const response = await fetch('https://anochat.in/v1/auth/resend-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email,
-          type: 'resend_otp',
-          timestamp: new Date().toISOString()
+          email: email,
         })
       });
   

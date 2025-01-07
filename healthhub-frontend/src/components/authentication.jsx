@@ -1,11 +1,76 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Heart, LogIn, UserPlus, Eye, EyeOff,
   Mail, Lock, User, ArrowRight, Check,
   Shield, Activity, Calendar, X, Sparkles,
-  Phone} from 'lucide-react'
-import { useNavigate } from 'react-router-dom';
+  Phone
+} from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom';
 
+const buildGoogleOAuthURL = () => {
+  const params = {
+    client_id: '232880583599-2ub31l5n5iuho98avcqr0bbhtu5gesb6.apps.googleusercontent.com',
+    // Use the exact redirect URI from your Google Cloud Console
+    redirect_uri: 'https://anochat.in/v1/auth/google/callback', // Using absolute URL instead of template string
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    state: 'random-string'
+  };
+  
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams(params).toString();
+};
+
+
+
+
+const useGoogleAuth = (navigate) => {
+  // Function to initiate Google Login
+  const initiateGoogleLogin = async () => {
+    try {
+      console.log('Initiating Google login...');
+      const response = await fetch('https://anochat.in/v1/auth/google/login');
+      const result = await response.json();
+      
+      if (result.success && result.code === 200 && result.data.url) {
+        console.log('Redirecting to:', result.data.url);
+        window.location.href = result.data.url;
+      } else {
+        throw new Error('Invalid response from Google login endpoint');
+      }
+    } catch (error) {
+      console.error('Error initiating Google login:', error);
+      throw new Error('Failed to initiate Google login. Please try again.');
+    }
+  };
+
+  // Function to handle the callback from Google
+  const handleGoogleCallback = async (code, state) => {
+    try {
+      console.log('Processing Google callback with code:', code);
+      const response = await fetch(`https://anochat.in/v1/auth/google/callback?code=${code}&state=${state}`);
+      const data = await response.json();
+
+      if (data.success) {
+        // Store tokens and user data
+        localStorage.setItem('accessToken', data.tokens.access_token);
+        localStorage.setItem('refreshToken', data.tokens.refresh_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Navigate to profile page directly
+        navigate('/profile');
+        return data;
+      } else {
+        throw new Error(data.message || 'Google authentication failed');
+      }
+    } catch (error) {
+      console.error('Error in Google callback:', error);
+      throw error;
+    }
+  };
+
+  return { initiateGoogleLogin, handleGoogleCallback };
+};
+// UI Components
 const HeartbeatLine = ({ top, opacity = 1 }) => {
   return (
     <div
@@ -55,95 +120,83 @@ const PulseCircle = ({ size = "lg", color = "white", delay = 0 }) => {
 }
 
 const AuthPage = ({ onComplete }) => {
-  const [isLogin, setIsLogin] = useState(true)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [activeField, setActiveField] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [formComplete, setFormComplete] = useState(false)
   const navigate = useNavigate();
+  const location = useLocation();
+  const { initiateGoogleLogin, handleGoogleCallback } = useGoogleAuth(navigate);
+
+  // State management
+  const [isLogin, setIsLogin] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [activeField, setActiveField] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [formComplete, setFormComplete] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
     fullName: '',
     phoneNumber: ''
-  })
-  const [passwordsMatch, setPasswordsMatch] = useState(true)
-  const [passwordError, setPasswordError] = useState('')
-  const [error, setError] = useState('');
+  });
+  const [passwordsMatch, setPasswordsMatch] = useState(true);
+  const [passwordError, setPasswordError] = useState('');
 
+  // Handle Google callback on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+  
+    if (code && state) {
+      setGoogleLoading(true);
+      handleGoogleCallback(code, state)
+        .then(data => {
+          if (data.success) {
+            setFormComplete(true);
+            setTimeout(() => {
+              navigate('/profile');
+            }, 1000);
+          }
+        })
+        .catch(error => {
+          setError(error.message || 'Google authentication failed');
+          setTimeout(() => {
+            navigate('/auth');
+          }, 3000);
+        })
+        .finally(() => {
+          setGoogleLoading(false);
+        });
+    }
+  }, [location, handleGoogleCallback, navigate]);
+
+  // Validation functions
   const validatePhone = (phone) => {
-    const regex = /^[0-9]{10}$/; 
+    const regex = /^[0-9]{10}$/;
     return regex.test(phone);
   };
-
-  const [floatingElements] = useState([...Array(12)].map((_, i) => ({
-    id: i,
-    size: Math.random() * 100 + 50,
-    position: {
-      x: Math.random() * 100,
-      y: Math.random() * 100
-    },
-    delay: Math.random() * 5,
-    color: `rgba(255, 255, 255, ${Math.random() * 0.1})`
-  })))
-
-  const [pulseElements] = useState([...Array(6)].map((_, i) => ({
-    id: i,
-    size: Math.random() * 20 + 10,
-    position: {
-      x: `${Math.random() * 100}%`,
-      y: `${Math.random() * 100}%`
-    },
-    color: `rgba(255, 255, 255, ${Math.random() * 0.15})`
-  })))
-
-  const [waveElements] = useState([...Array(3)].map((_, i) => ({
-    id: i,
-    delay: i * 2,
-    duration: 8 + i * 2
-  })))
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-
-    if (name === 'confirmPassword' || name === 'password') {
-      if (!isLogin) {
-        validatePasswords(
-          name === 'password' ? value : formData.password,
-          name === 'confirmPassword' ? value : formData.confirmPassword
-        )
-      }
-    }
-
-    if (passwordError) {
-      setPasswordError('');
-    }
-  }
-
   const validatePasswords = (password, confirmPassword) => {
     if (password !== confirmPassword) {
-      setPasswordsMatch(false)
-      setPasswordError('Passwords do not match')
+      setPasswordsMatch(false);
+      setPasswordError('Passwords do not match');
     } else if (password.length < 8) {
-      setPasswordsMatch(false)
-      setPasswordError('Password must be at least 8 characters')
+      setPasswordsMatch(false);
+      setPasswordError('Password must be at least 8 characters');
     } else {
-      setPasswordsMatch(true)
-      setPasswordError('')
+      setPasswordsMatch(true);
+      setPasswordError('');
     }
-  }
+  };
 
+  // Form validation
   const isFormValid = () => {
     if (isLogin) {
       return formData.email && formData.password && validateEmail(formData.email);
@@ -158,96 +211,117 @@ const AuthPage = ({ onComplete }) => {
     }
   };
 
+  // Handle Google login button click
+  const handleGoogleLoginClick = async () => {
+    try {
+      setGoogleLoading(true);
+      setError('');
+      await initiateGoogleLogin();
+    } catch (error) {
+      setError(error.message || 'Failed to connect with Google');
+      setGoogleLoading(false);
+    }
+  };
 
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
 
+    if (name === 'confirmPassword' || name === 'password') {
+      if (!isLogin) {
+        validatePasswords(
+          name === 'password' ? value : formData.password,
+          name === 'confirmPassword' ? value : formData.confirmPassword
+        );
+      }
+    }
+
+    if (passwordError) {
+      setPasswordError('');
+    }
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid()) return;
-  
+
     setIsLoading(true);
     setError('');
-  
+
     try {
+      // Login flow
       if (isLogin) {
-        try {
-          const response = await fetch('https://anochat.in/v1/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-            })
-          });
-  
-          const data = await response.json();
-  
-          if (data.success) {
-            setFormComplete(true);
-            localStorage.setItem('user', JSON.stringify(data.data.user));
-            setTimeout(() => {
-              setIsLoading(false);
-              setFormComplete(false);
-              // Navigate or handle success
-            }, 1000);
-          } else {
-            throw new Error(data.message || 'Login failed');
-          }
-        } catch (error) {
-          setError(error.message || 'Login failed. Please try again.');
-          setIsLoading(false);
+        const response = await fetch('https://anochat.in/v1/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setFormComplete(true);
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+          setTimeout(() => {
+            setIsLoading(false);
+            setFormComplete(false);
+            // Navigate to OTP verification for email login
+            onComplete(formData.email);
+          }, 1000);
+        } else {
+          throw new Error(data.message || 'Login failed');
         }
-      } else {
-        try {
-          const response = await fetch('https://anochat.in/v1/auth/signup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: formData.fullName,
-              email: formData.email,
-              password: formData.password,
-              phone: formData.phoneNumber
-            })
-          });
-  
-          const data = await response.json();
-  
-          if (data.success) {
-            localStorage.setItem('user', JSON.stringify(data.data.user));
-            setFormComplete(true);
-            
-            setTimeout(() => {
-              setIsLoading(false);
-              setFormComplete(false);
-              onComplete(formData.email); // Trigger OTP verification
-            }, 1000);
-          } else {
-            throw new Error(data.message || 'Signup failed');
-          }
-        } catch (error) {
-          setError(error.message || 'Signup failed. Please try again.');
-          setIsLoading(false);
+      }
+      // Signup flow
+      else {
+        const response = await fetch('https://anochat.in/v1/auth/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.fullName,
+            email: formData.email,
+            password: formData.password,
+            phone: parseInt(formData.phoneNumber, 10)
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+          setFormComplete(true);
+
+          setTimeout(() => {
+            setIsLoading(false);
+            setFormComplete(false);
+            // Navigate to OTP verification for email signup
+            onComplete(formData.email);
+          }, 1000);
+        } else {
+          throw new Error(data.message || 'Signup failed');
         }
       }
     } catch (error) {
-      setError('An unexpected error occurred. Please try again.');
+      setError(error.message || 'An unexpected error occurred');
       setIsLoading(false);
     }
   };
-  {error && (
-    <div className="text-red-500 bg-red-50 p-3 rounded-lg flex items-center gap-2 mb-4">
-      <X className="h-5 w-5" />
-      <span>{error}</span>
-    </div>
-  )}
-  
   return (
-    
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-teal-50 to-white overflow-hidden">
       <div className="min-h-screen flex flex-col lg:flex-row">
+        {/* Left Section */}
         <div className="lg:w-1/2 bg-gradient-to-br from-teal-600 via-blue-600 to-blue-700 p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute top-10 left-10">
@@ -340,7 +414,7 @@ const AuthPage = ({ onComplete }) => {
                       className="relative w-12 h-12 rounded-full bg-white/10 overflow-hidden hover:translate-y-1 transition-transform"
                     >
                       <img
-                        src={`/api/placeholder/48/48`}
+                        src="/api/placeholder/48/48"
                         alt="User avatar"
                         className="w-full h-full object-cover"
                       />
@@ -361,6 +435,7 @@ const AuthPage = ({ onComplete }) => {
           </div>
         </div>
 
+        {/* Right Section */}
         <div className="lg:w-1/2 p-8 lg:p-16 flex flex-col justify-center bg-white/80 backdrop-blur-lg">
           <div className="max-w-md mx-auto w-full">
             <div className="flex justify-between items-center mb-12">
@@ -376,7 +451,7 @@ const AuthPage = ({ onComplete }) => {
                     password: '',
                     confirmPassword: '',
                     fullName: '',
-                    phoneNumber: ''  
+                    phoneNumber: ''
                   })
                 }}
                 className="text-teal-600 hover:text-teal-700 font-medium transform transition-all duration-300 hover:scale-105"
@@ -385,18 +460,37 @@ const AuthPage = ({ onComplete }) => {
               </button>
             </div>
 
-            <div className="mb-10">
+            {error && (
+              <div className="mb-6 text-red-500 bg-red-50 p-3 rounded-lg flex items-center gap-2">
+                <X className="h-5 w-5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="mb-8">
               <button
-                onClick={() => { }}
-                className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-4 rounded-2xl hover:bg-gray-50 transition-all duration-300 transform hover:scale-102 hover:shadow-lg group"
+                onClick={handleGoogleLoginClick}
+                disabled={googleLoading}
+                className="w-full flex items-center justify-center gap-3 bg-white border-2 
+          border-gray-200 p-4 rounded-2xl hover:bg-gray-50 transition-all duration-300 
+          transform hover:scale-102 hover:shadow-lg group disabled:opacity-50 
+          disabled:cursor-not-allowed"
               >
                 <img
                   src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png"
                   alt="Google"
                   className="w-6 h-6 group-hover:scale-110 transition-transform"
                 />
-                <span className="text-lg text-gray-700">Continue with Google</span>
+                <span className="text-lg text-gray-700">
+                  {googleLoading ? 'Connecting...' : 'Continue with Google'}
+                </span>
+                {googleLoading && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 
+            border-gray-500 border-t-transparent"
+                  />
+                )}
               </button>
+
 
               <div className="relative my-8">
                 <div className="absolute inset-0 flex items-center">
@@ -424,7 +518,8 @@ const AuthPage = ({ onComplete }) => {
                       className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-300"
                       placeholder="Enter your full name"
                       onFocus={() => setActiveField('name')}
-                      onBlur={() => setActiveField(null)} />
+                      onBlur={() => setActiveField(null)}
+                    />
                   </div>
                 </div>
               )}
@@ -482,7 +577,6 @@ const AuthPage = ({ onComplete }) => {
                   </label>
                   {isLogin && (
                     <button
-
                       type="button"
                       onClick={() => { navigate('/forgot-password'); }}
                       className="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors duration-300 hover:underline">
@@ -607,7 +701,7 @@ const AuthPage = ({ onComplete }) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AuthPage
+export default AuthPage;
