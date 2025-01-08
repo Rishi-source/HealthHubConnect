@@ -5,10 +5,11 @@ import (
 	v1 "HealthHubConnect/routes/v1"
 
 	"github.com/gorilla/mux"
+	"googlemaps.github.io/maps"
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(router *mux.Router, db *gorm.DB) {
+func SetupRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client) {
 	// Apply middlewares
 	router.Use(middleware.CorsMiddleware)
 	router.Use(middleware.LoggingMiddleware)
@@ -16,5 +17,5 @@ func SetupRoutes(router *mux.Router, db *gorm.DB) {
 	// sub router for v1 routes
 	v1Router := router.PathPrefix("/v1").Subrouter()
 
-	v1.RegisterRoutes(v1Router, db)
+	v1.RegisterRoutes(v1Router, db, mapsClient)
 }

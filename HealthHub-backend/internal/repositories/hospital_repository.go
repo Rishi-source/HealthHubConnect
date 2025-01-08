@@ -4,8 +4,8 @@ import (
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/types"
 	"context"
-	"fmt"
 	"math"
+	"sort"
 
 	"googlemaps.github.io/maps"
 	"gorm.io/gorm"
@@ -46,46 +46,59 @@ func (r *HospitalRepository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *HospitalRepository) FindNearbyWithFilters(ctx context.Context, location models.Location, filters types.HospitalFilters, places *maps.PlacesSearchResponse) ([]*models.Hospital, error) {
+	if places == nil {
+		return make([]*models.Hospital, 0), nil
+	}
+
 	var hospitals []*models.Hospital
-	query := r.db.Model(&models.Hospital{})
 
-	// Apply filters
-	if filters.IsOpen != nil {
-		query = query.Where("is_open = ?", *filters.IsOpen)
-	}
-	if filters.HasEmergency != nil {
-		query = query.Where("has_emergency = ?", *filters.HasEmergency)
-	}
-	if filters.MinRating != nil {
-		query = query.Where("rating >= ?", *filters.MinRating)
-	}
-	if len(filters.Specialities) > 0 {
-		query = query.Joins("JOIN hospital_specialities ON hospitals.id = hospital_specialities.hospital_id").
-			Where("hospital_specialities.name IN ?", filters.Specialities)
+	// Convert Places results to hospitals
+	for _, place := range places.Results {
+		hospital := &models.Hospital{
+			Name:          place.Name,
+			Address:       place.FormattedAddress,
+			GooglePlaceID: place.PlaceID,
+			Location: models.Location{
+				Latitude:  place.Geometry.Location.Lat,
+				Longitude: place.Geometry.Location.Lng,
+			},
+			Rating: float32(place.Rating),
+		}
+
+		if place.OpeningHours != nil {
+			hospital.IsOpen = *place.OpeningHours.OpenNow
+		}
+
+		// Calculate distance
+		distance := r.calculateDistance(
+			location.Latitude,
+			location.Longitude,
+			hospital.Location.Latitude,
+			hospital.Location.Longitude,
+		)
+
+		// Apply filters
+		if !r.passesFilters(hospital, &filters) {
+			continue
+		}
+
+		// Check distance
+		if distance <= filters.Radius/1000 { // Convert meters to km
+			hospital.Distance = distance
+			hospitals = append(hospitals, hospital)
+		}
 	}
 
-	// Calculate distance and filter by radius
-	query = query.Where(`
-		ST_Distance(
-			ST_MakePoint(location_longitude, location_latitude)::geography,
-			ST_MakePoint(?, ?)::geography
-		) <= ?`,
-		location.Longitude, location.Latitude, filters.Radius)
-
-	// Fix the Order call syntax
-	query = query.Order(fmt.Sprintf(`
-		ST_Distance(
-			ST_MakePoint(location_longitude, location_latitude)::geography,
-			ST_MakePoint(%f, %f)::geography
-		)`,
-		location.Longitude, location.Latitude))
-
-	if err := query.Find(&hospitals).Error; err != nil {
-		return nil, err
+	if hospitals == nil {
+		return make([]*models.Hospital, 0), nil
 	}
 
-	// Merge with Google Places data
-	return r.mergeWithPlacesData(hospitals, places), nil
+	// Sort by distance
+	sort.Slice(hospitals, func(i, j int) bool {
+		return hospitals[i].Distance < hospitals[j].Distance
+	})
+
+	return hospitals, nil
 }
 
 func (r *HospitalRepository) ProcessSearchResults(ctx context.Context, results *maps.PlacesSearchResponse, filters *types.HospitalFilters) ([]*models.Hospital, error) {
@@ -135,7 +148,6 @@ func (r *HospitalRepository) mergeWithPlacesData(hospitals []*models.Hospital, p
 			} else {
 				hospital.IsOpen = false
 			}
-			// Add more fields as needed
 		}
 	}
 

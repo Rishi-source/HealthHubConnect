@@ -19,7 +19,7 @@ type Hospital struct {
 	Rating        float32      `json:"rating"`
 	Services      []string     `json:"services"`
 	IsOpen        bool         `json:"is_open"`
-	Distance      float64      `json:"distance,omitempty"`
+	Distance      float64      `gorm:"-" json:"distance"`
 	HasEmergency  bool         `json:"has_emergency"`
 	Specialities  []Speciality `json:"specialities" gorm:"many2many:hospital_specialities;"`
 	GooglePlaceID string       `json:"google_place_id"`

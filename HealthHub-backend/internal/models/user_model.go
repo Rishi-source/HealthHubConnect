@@ -31,6 +31,7 @@ type User struct {
 	AuthProvider     string         `json:"auth_provider" gorm:"default:'local'"`
 	HealthProfile    *HealthProfile `json:"health_profile" gorm:"foreignKey:UserID"`
 	Location         *UserLocation  `json:"location" gorm:"foreignKey:UserID"`
+	IsNewUser        bool           `json:"is_new_user" gorm:"-"`
 }
 
 type LoginAttempt struct {

@@ -93,3 +93,11 @@ func NewNotAuthorizedError(resource string) *CustomError {
 		StatusCode: http.StatusUnauthorized,
 	}
 }
+
+func NewForbiddenError(message string) *CustomError {
+	return &CustomError{
+		Message:    message,
+		ErrorCode:  "FORBIDDEN",
+		StatusCode: http.StatusForbidden,
+	}
+}

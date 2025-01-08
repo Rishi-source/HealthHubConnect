@@ -6,6 +6,7 @@ import (
 	"HealthHubConnect/internal/repositories"
 	"HealthHubConnect/internal/types"
 	"context"
+	"fmt"
 
 	"googlemaps.github.io/maps"
 )
@@ -32,21 +33,19 @@ func (s *HospitalService) FindNearbyHospitals(ctx context.Context, location mode
 			Lat: location.Latitude,
 			Lng: location.Longitude,
 		},
-		// Fix: Convert float64 to uint
-		Radius:   uint(int32(filters.Radius)), // Convert through int32 to avoid overflow
+		Radius:   uint(int32(filters.Radius)),
 		Type:     "hospital",
 		Language: "en",
 	}
 
 	places, err := s.mapsClient.NearbySearch(mapsCtx, placeReq)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch nearby places: %w", err)
 	}
 
-	// Fix: Pass address of places
 	hospitals, err := s.repo.FindNearbyWithFilters(ctx, location, filters, &places)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to process nearby hospitals: %w", err)
 	}
 
 	return hospitals, nil
@@ -86,4 +85,26 @@ func (s *HospitalService) CreateHospital(ctx context.Context, hospital models.Ho
 
 func (s *HospitalService) UpdateHospital(ctx context.Context, id string, hospital models.Hospital) (*models.Hospital, error) {
 	return s.repo.Update(ctx, id, hospital)
+}
+
+func (s *HospitalService) GetRawPlacesData(ctx context.Context, location models.Location, filters types.HospitalFilters) (*maps.PlacesSearchResponse, error) {
+	mapsCtx, cancel := context.WithTimeout(ctx, env.GoogleMaps.RequestTimeout)
+	defer cancel()
+
+	placeReq := &maps.NearbySearchRequest{
+		Location: &maps.LatLng{
+			Lat: location.Latitude,
+			Lng: location.Longitude,
+		},
+		Radius:   uint(int32(filters.Radius)),
+		Type:     "hospital",
+		Language: "en",
+	}
+
+	places, err := s.mapsClient.NearbySearch(mapsCtx, placeReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch nearby places: %w", err)
+	}
+
+	return &places, nil
 }

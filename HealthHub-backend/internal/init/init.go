@@ -55,7 +55,7 @@ func InitServer(db *gorm.DB) error {
 	router := mux.NewRouter()
 
 	// Setup routes (including admin routes)
-	routes.SetupRoutes(router, db)
+	routes.SetupRoutes(router, db, MapsClient)
 
 	port := env.ServerPort
 	router.NotFoundHandler = http.HandlerFunc(handlers.StatusNotFoundHandler)

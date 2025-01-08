@@ -111,3 +111,24 @@ func (h *HospitalHandler) UpdateHospital(w http.ResponseWriter, r *http.Request)
 
 	json.NewEncoder(w).Encode(updated)
 }
+
+// Add this new method to HospitalHandler
+func (h *HospitalHandler) DebugNearbyPlaces(w http.ResponseWriter, r *http.Request) {
+	var req FindNearbyHospitalsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	places, err := h.hospitalService.GetRawPlacesData(r.Context(), req.Location, req.Filters)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Pretty print the response
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "    ")
+	encoder.Encode(places)
+}

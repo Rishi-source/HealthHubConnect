@@ -61,21 +61,25 @@ func SendEmail(to string, subject string, bodyContent string) error {
 	}
 	message += "\r\n" + bodyContent
 
-	// Send email
 	if err = client.Mail(from); err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("failed to set from address: %v", err)
 	}
 	if err = client.Rcpt(to); err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("failed to set recipient: %v", err)
 	}
 
 	w, err := client.Data()
 	if err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("failed to open data connection: %v", err)
 	}
 
 	_, err = w.Write([]byte(message))
 	if err != nil {
+		fmt.Println(err)
+
 		return fmt.Errorf("failed to write message: %v", err)
 	}
 

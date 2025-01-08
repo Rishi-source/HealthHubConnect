@@ -3,6 +3,7 @@ module HealthHubConnect
 go 1.23.4
 
 require (
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/gorilla/mux v1.8.1
 	github.com/rs/zerolog v1.33.0
@@ -15,8 +16,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.3.0 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect

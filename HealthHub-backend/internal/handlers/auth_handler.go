@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"html/template"
+	"fmt"
 	"net/http"
-	"path/filepath"
+	"net/url"
 
 	"HealthHubConnect/env"
 	e "HealthHubConnect/internal/errors"
@@ -170,44 +170,46 @@ func (h *UserHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	if state != env.OAuthStateString {
-		http.Redirect(w, r, "/callback.html?error=invalid_state", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s?error=%s",
+			env.OAuthRedirects.ErrorRedirect,
+			"invalid_state")
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 
 	code := r.URL.Query().Get("code")
+	if code == "" {
+		redirectURL := fmt.Sprintf("%s?error=%s",
+			env.OAuthRedirects.ErrorRedirect,
+			"missing_code")
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+		return
+	}
+
 	ctx := r.Context()
-
-	_, tokens, err := h.userService.HandleGoogleCallback(ctx, code)
+	user, tokens, err := h.userService.HandleGoogleCallback(ctx, code)
 	if err != nil {
-		http.Redirect(w, r, "/callback.html?error="+err.Error(), http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s?error=%s",
+			env.OAuthRedirects.ErrorRedirect,
+			url.QueryEscape(err.Error()))
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 
-	// Get the absolute path to the callback.html file
-	htmlPath := filepath.Join("public", "callback.html")
-	tmpl, err := template.ParseFiles(htmlPath)
-	if err != nil {
-		http.Error(w, "Template not found", http.StatusInternalServerError)
-		return
+	baseRedirect := env.OAuthRedirects.ExistingUserRedirect
+	if user.IsNewUser {
+		baseRedirect = env.OAuthRedirects.NewUserRedirect
 	}
 
-	// Set content type
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	redirectURL := fmt.Sprintf("%s?access_token=%s&refresh_token=%s&is_new_user=%t",
+		baseRedirect,
+		url.QueryEscape(tokens.AccessToken),
+		url.QueryEscape(tokens.RefreshToken),
+		user.IsNewUser)
 
-	// Execute template with the token
-	data := struct {
-		Token string
-		Error string
-	}{
-		Token: tokens.AccessToken,
-		Error: "",
-	}
-
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, "Failed to render template", http.StatusInternalServerError)
-		return
-	}
+	w.Header().Set("Access-Control-Allow-Origin", env.FrontendConfig.BaseURL)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
 func (h *UserHandler) ResendOTP(w http.ResponseWriter, r *http.Request) {

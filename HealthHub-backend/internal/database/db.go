@@ -23,6 +23,9 @@ var modelsToMigrate = []interface{}{
 	&models.Allergy{},
 	&models.Medication{},
 	&models.VitalSign{},
+	&models.Hospital{},
+	&models.Appointment{},
+	&models.DoctorAvailability{},
 }
 
 func InitDB() error {
