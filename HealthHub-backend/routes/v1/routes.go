@@ -2,6 +2,7 @@ package v1
 
 import (
 	"HealthHubConnect/internal/handlers"
+	"HealthHubConnect/internal/websocket"
 	"HealthHubConnect/pkg/middleware"
 	"encoding/json"
 	"net/http"
@@ -11,13 +12,14 @@ import (
 	"gorm.io/gorm"
 )
 
-func RegisterRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client) {
+func RegisterRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client, wsManager *websocket.Manager) {
 	// Register different route groups
 	RegisterAuthRoutes(router, db)
 	RegisterHealthRoutes(router, db)
 	RegisterHospitalRoutes(router, db, mapsClient)
 	RegisterDoctorRoutes(router, db)
 	RegisterAppointmentRoutes(router, db)
+	RegisterChatRoutes(router, db, wsManager)
 
 	router.HandleFunc("/health", handlers.HealthCheck).Methods("GET")
 

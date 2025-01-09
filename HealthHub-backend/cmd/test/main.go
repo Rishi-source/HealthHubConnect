@@ -1,9 +1,14 @@
 package main
 
+import (
+	"HealthHubConnect/internal/utils"
+	"fmt"
+)
+
 func main() {
 
-	// tokenPair, _ := utils.GenerateTokenPair(14325342)
-	// fmt.Println(tokenPair.AccessToken)
+	tokenPair, _ := utils.GenerateTokenPair(2)
+	fmt.Println(tokenPair.AccessToken)
 	// fmt.Println(tokenPair.RefreshToken)
 	// fmt.Println(utils.ExtractUserIDFromToken(tokenPair.AccessToken, env.Jwt.AccessTokenSecret))
 	// fmt.Println(utils.ValidateToken(tokenPair.RefreshToken, env.Jwt.RefreshTokenSecret, "refresh"))

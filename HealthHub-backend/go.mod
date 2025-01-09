@@ -6,6 +6,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/rs/zerolog v1.33.0
 	golang.org/x/crypto v0.31.0
 	golang.org/x/oauth2 v0.24.0

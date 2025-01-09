@@ -3,6 +3,7 @@ package repositories
 import (
 	"HealthHubConnect/internal/models"
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -57,4 +58,22 @@ func (ur *UserRepository) FindByID(ctx context.Context, id uint) (*models.User, 
 		return nil, err
 	}
 	return &user, nil
+}
+
+// VerifyUsers checks if both users exist in the database
+func (r *UserRepository) VerifyUsers(ctx context.Context, userID1, userID2 uint) error {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.User{}).
+		Where("id IN ?", []uint{userID1, userID2}).
+		Count(&count).Error
+
+	if err != nil {
+		return err
+	}
+
+	if count != 2 {
+		return errors.New("one or both users not found")
+	}
+
+	return nil
 }

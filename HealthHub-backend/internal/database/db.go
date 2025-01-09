@@ -23,6 +23,8 @@ var modelsToMigrate = []interface{}{
 	&models.Allergy{},
 	&models.Medication{},
 	&models.VitalSign{},
+	&models.ChatMessage{},
+
 	&models.Hospital{},
 	&models.Appointment{},
 	&models.DoctorAvailability{},

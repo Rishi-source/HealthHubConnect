@@ -2,7 +2,7 @@ package v1
 
 import (
 	"HealthHubConnect/internal/handlers"
-	"HealthHubConnect/internal/repository"
+	"HealthHubConnect/internal/repositories"
 	"HealthHubConnect/internal/services"
 	"HealthHubConnect/pkg/middleware"
 
@@ -12,7 +12,7 @@ import (
 
 func RegisterAppointmentRoutes(router *mux.Router, db *gorm.DB) {
 	// Initialize dependencies
-	appointmentRepo := repository.NewAppointmentRepository(db)
+	appointmentRepo := repositories.NewAppointmentRepository(db)
 	appointmentService := services.NewAppointmentService(appointmentRepo)
 	appointmentHandler := handlers.NewAppointmentHandler(appointmentService)
 

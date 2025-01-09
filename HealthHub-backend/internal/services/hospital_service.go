@@ -23,8 +23,7 @@ func NewHospitalService(repo *repositories.HospitalRepository, mapsClient *maps.
 	}
 }
 
-func (s *HospitalService) FindNearbyHospitals(ctx context.Context, location models.Location, filters types.HospitalFilters) ([]*models.Hospital, error) {
-	// Create a new context with timeout for the Maps API request
+func (s *HospitalService) FindNearbyHospitals(ctx context.Context, location models.Location, filters types.HospitalFilters) ([]models.Hospital, error) {
 	mapsCtx, cancel := context.WithTimeout(ctx, env.GoogleMaps.RequestTimeout)
 	defer cancel()
 
@@ -43,27 +42,21 @@ func (s *HospitalService) FindNearbyHospitals(ctx context.Context, location mode
 		return nil, fmt.Errorf("failed to fetch nearby places: %w", err)
 	}
 
-	hospitals, err := s.repo.FindNearbyWithFilters(ctx, location, filters, &places)
-	if err != nil {
-		return nil, fmt.Errorf("failed to process nearby hospitals: %w", err)
-	}
-
-	return hospitals, nil
+	return s.repo.FindNearbyWithFilters(ctx, location, filters, &places)
 }
 
-func (s *HospitalService) SearchHospitals(ctx context.Context, query string, location *models.Location, filters *types.HospitalFilters) ([]*models.Hospital, error) {
+func (s *HospitalService) SearchHospitals(ctx context.Context, query string, location *models.Location, filters *types.HospitalFilters) ([]models.Hospital, error) {
 	searchReq := &maps.TextSearchRequest{
 		Query:    query + " hospital",
 		Language: "en",
 	}
 
-	if location != nil {
+	if location != nil && filters != nil {
 		searchReq.Location = &maps.LatLng{
 			Lat: location.Latitude,
 			Lng: location.Longitude,
 		}
-		// Fix: Convert float64 to uint
-		searchReq.Radius = uint(int32(filters.Radius)) // Convert through int32 to avoid overflow
+		searchReq.Radius = uint(int32(filters.Radius))
 	}
 
 	results, err := s.mapsClient.TextSearch(ctx, searchReq)
@@ -71,19 +64,18 @@ func (s *HospitalService) SearchHospitals(ctx context.Context, query string, loc
 		return nil, err
 	}
 
-	// Fix: Pass address of results
-	return s.repo.ProcessSearchResults(ctx, &results, filters)
+	return s.repo.ProcessSearchResults(ctx, &results, *filters)
 }
 
-func (s *HospitalService) GetHospitalByID(ctx context.Context, id string) (*models.Hospital, error) {
+func (s *HospitalService) GetHospitalByID(ctx context.Context, id string) (models.Hospital, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *HospitalService) CreateHospital(ctx context.Context, hospital models.Hospital) (*models.Hospital, error) {
+func (s *HospitalService) CreateHospital(ctx context.Context, hospital models.Hospital) (models.Hospital, error) {
 	return s.repo.Create(ctx, hospital)
 }
 
-func (s *HospitalService) UpdateHospital(ctx context.Context, id string, hospital models.Hospital) (*models.Hospital, error) {
+func (s *HospitalService) UpdateHospital(ctx context.Context, id string, hospital models.Hospital) (models.Hospital, error) {
 	return s.repo.Update(ctx, id, hospital)
 }
 

@@ -3,6 +3,7 @@ package middleware
 import (
 	"HealthHubConnect/pkg/logger"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -17,14 +18,18 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
+// isWebSocketRequest checks if the request is a WebSocket upgrade request
+func isWebSocketRequest(r *http.Request) bool {
+	return strings.ToLower(r.Header.Get("Upgrade")) == "websocket"
+}
+
 // loggingMiddleware logs the incoming request and the outgoing response
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-		rw := &responseWriter{w, http.StatusOK}
-
 		loggerManager := logger.GetLogger()
 
+		// Log the incoming request
 		logEvent := loggerManager.ServerLogger.Info().
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
@@ -33,10 +38,6 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			Str("host", r.Host).
 			Str("user_agent", r.UserAgent())
 
-		// err := errors.New("url not found")
-		// if rw.status == http.StatusNotFound {
-		// 	loggerManager.ServerLogger.Error().Err(err).Msg("404 not found")
-		// } created a handler for this
 		for name, values := range r.Header {
 			logEvent.Strs(name, values)
 		}
@@ -49,6 +50,14 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		logEvent.Msg("Incoming request")
 
+		// If it's a WebSocket request, don't wrap the ResponseWriter
+		if isWebSocketRequest(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// For regular HTTP requests, use the custom response writer
+		rw := &responseWriter{w, http.StatusOK}
 		next.ServeHTTP(rw, r)
 
 		// imp request duration
@@ -62,5 +71,4 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			Dur("duration", duration).
 			Msg("Request completed")
 	})
-
 }

@@ -4,6 +4,7 @@ import (
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/types"
 	"context"
+	"errors"
 	"math"
 	"sort"
 
@@ -19,42 +20,56 @@ func NewHospitalRepository(db *gorm.DB) *HospitalRepository {
 	return &HospitalRepository{db: db}
 }
 
-func (r *HospitalRepository) FindByID(ctx context.Context, id string) (*models.Hospital, error) {
+func (r *HospitalRepository) FindByID(ctx context.Context, id string) (models.Hospital, error) {
 	var hospital models.Hospital
-	if err := r.db.First(&hospital, "id = ?", id).Error; err != nil {
-		return nil, err
+	result := r.db.WithContext(ctx).First(&hospital, "id = ?", id)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return models.Hospital{}, errors.New("hospital not found")
+		}
+		return models.Hospital{}, result.Error
 	}
-	return &hospital, nil
+	return hospital, nil
 }
 
-func (r *HospitalRepository) Create(ctx context.Context, hospital models.Hospital) (*models.Hospital, error) {
-	if err := r.db.Create(&hospital).Error; err != nil {
-		return nil, err
+func (r *HospitalRepository) Create(ctx context.Context, hospital models.Hospital) (models.Hospital, error) {
+	result := r.db.WithContext(ctx).Create(&hospital)
+	if result.Error != nil {
+		return models.Hospital{}, result.Error
 	}
-	return &hospital, nil
+	return hospital, nil
 }
 
-func (r *HospitalRepository) Update(ctx context.Context, id string, hospital models.Hospital) (*models.Hospital, error) {
-	if err := r.db.Model(&hospital).Where("id = ?", id).Updates(hospital).Error; err != nil {
-		return nil, err
+func (r *HospitalRepository) Update(ctx context.Context, id string, hospital models.Hospital) (models.Hospital, error) {
+	result := r.db.WithContext(ctx).Model(&models.Hospital{}).Where("id = ?", id).Updates(hospital)
+	if result.Error != nil {
+		return models.Hospital{}, result.Error
 	}
-	return &hospital, nil
+	if result.RowsAffected == 0 {
+		return models.Hospital{}, errors.New("hospital not found")
+	}
+	return hospital, nil
 }
 
 func (r *HospitalRepository) Delete(ctx context.Context, id string) error {
-	return r.db.Delete(&models.Hospital{}, "id = ?", id).Error
+	result := r.db.WithContext(ctx).Delete(&models.Hospital{}, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("hospital not found")
+	}
+	return nil
 }
 
-func (r *HospitalRepository) FindNearbyWithFilters(ctx context.Context, location models.Location, filters types.HospitalFilters, places *maps.PlacesSearchResponse) ([]*models.Hospital, error) {
+func (r *HospitalRepository) FindNearbyWithFilters(ctx context.Context, location models.Location, filters types.HospitalFilters, places *maps.PlacesSearchResponse) ([]models.Hospital, error) {
 	if places == nil {
-		return make([]*models.Hospital, 0), nil
+		return []models.Hospital{}, nil
 	}
 
-	var hospitals []*models.Hospital
-
-	// Convert Places results to hospitals
+	hospitals := make([]models.Hospital, 0)
 	for _, place := range places.Results {
-		hospital := &models.Hospital{
+		hospital := models.Hospital{
 			Name:          place.Name,
 			Address:       place.FormattedAddress,
 			GooglePlaceID: place.PlaceID,
@@ -69,7 +84,6 @@ func (r *HospitalRepository) FindNearbyWithFilters(ctx context.Context, location
 			hospital.IsOpen = *place.OpeningHours.OpenNow
 		}
 
-		// Calculate distance
 		distance := r.calculateDistance(
 			location.Latitude,
 			location.Longitude,
@@ -77,23 +91,14 @@ func (r *HospitalRepository) FindNearbyWithFilters(ctx context.Context, location
 			hospital.Location.Longitude,
 		)
 
-		// Apply filters
-		if !r.passesFilters(hospital, &filters) {
+		if !r.passesFilters(hospital, filters) || distance > filters.Radius/1000 {
 			continue
 		}
 
-		// Check distance
-		if distance <= filters.Radius/1000 { // Convert meters to km
-			hospital.Distance = distance
-			hospitals = append(hospitals, hospital)
-		}
+		hospital.Distance = distance
+		hospitals = append(hospitals, hospital)
 	}
 
-	if hospitals == nil {
-		return make([]*models.Hospital, 0), nil
-	}
-
-	// Sort by distance
 	sort.Slice(hospitals, func(i, j int) bool {
 		return hospitals[i].Distance < hospitals[j].Distance
 	})
@@ -101,11 +106,14 @@ func (r *HospitalRepository) FindNearbyWithFilters(ctx context.Context, location
 	return hospitals, nil
 }
 
-func (r *HospitalRepository) ProcessSearchResults(ctx context.Context, results *maps.PlacesSearchResponse, filters *types.HospitalFilters) ([]*models.Hospital, error) {
-	var hospitals []*models.Hospital
+func (r *HospitalRepository) ProcessSearchResults(ctx context.Context, results *maps.PlacesSearchResponse, filters types.HospitalFilters) ([]models.Hospital, error) {
+	if results == nil {
+		return []models.Hospital{}, nil
+	}
 
+	hospitals := make([]models.Hospital, 0)
 	for _, result := range results.Results {
-		hospital := &models.Hospital{
+		hospital := models.Hospital{
 			Name:          result.Name,
 			Address:       result.FormattedAddress,
 			GooglePlaceID: result.PlaceID,
@@ -116,15 +124,12 @@ func (r *HospitalRepository) ProcessSearchResults(ctx context.Context, results *
 			Rating: float32(result.Rating),
 		}
 
-		// Check if hospital already exists in database
-		existingHospital := &models.Hospital{}
-		err := r.db.Where("google_place_id = ?", result.PlaceID).First(existingHospital).Error
+		var existingHospital models.Hospital
+		err := r.db.WithContext(ctx).Where("google_place_id = ?", result.PlaceID).First(&existingHospital).Error
 		if err == nil {
-			// Update existing hospital with new data
 			hospital = r.mergeHospitalData(existingHospital, hospital)
 		}
 
-		// Apply filters
 		if r.passesFilters(hospital, filters) {
 			hospitals = append(hospitals, hospital)
 		}
@@ -133,40 +138,16 @@ func (r *HospitalRepository) ProcessSearchResults(ctx context.Context, results *
 	return hospitals, nil
 }
 
-func (r *HospitalRepository) mergeWithPlacesData(hospitals []*models.Hospital, places *maps.PlacesSearchResponse) []*models.Hospital {
-	placeMap := make(map[string]*maps.PlacesSearchResult)
-	for _, place := range places.Results {
-		placeMap[place.PlaceID] = &place
-	}
-
-	for _, hospital := range hospitals {
-		if place, exists := placeMap[hospital.GooglePlaceID]; exists {
-			hospital.Rating = float32(place.Rating)
-			// Fix the OpeningHours comparison
-			if place.OpeningHours != nil {
-				hospital.IsOpen = *place.OpeningHours.OpenNow
-			} else {
-				hospital.IsOpen = false
-			}
-		}
-	}
-
-	return hospitals
-}
-
-func (r *HospitalRepository) mergeHospitalData(existing, new *models.Hospital) *models.Hospital {
-	// Keep existing data but update with new information from Google Places
+func (r *HospitalRepository) mergeHospitalData(existing, new models.Hospital) models.Hospital {
 	existing.Rating = new.Rating
 	existing.IsOpen = new.IsOpen
-	// Update other fields as needed
+	existing.Name = new.Name
+	existing.Address = new.Address
+	existing.Location = new.Location
 	return existing
 }
 
-func (r *HospitalRepository) passesFilters(hospital *models.Hospital, filters *types.HospitalFilters) bool {
-	if filters == nil {
-		return true
-	}
-
+func (r *HospitalRepository) passesFilters(hospital models.Hospital, filters types.HospitalFilters) bool {
 	if filters.MinRating != nil && hospital.Rating < *filters.MinRating {
 		return false
 	}
@@ -183,12 +164,11 @@ func (r *HospitalRepository) passesFilters(hospital *models.Hospital, filters *t
 }
 
 func (r *HospitalRepository) calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	const earthRadius = 6371 // kilometers
-
-	lat1Rad := toRadians(lat1)
-	lat2Rad := toRadians(lat2)
-	deltaLat := toRadians(lat2 - lat1)
-	deltaLon := toRadians(lon2 - lon1)
+	const earthRadius = 6371
+	lat1Rad := lat1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+	deltaLat := (lat2 - lat1) * math.Pi / 180
+	deltaLon := (lon2 - lon1) * math.Pi / 180
 
 	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
 		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
@@ -196,8 +176,4 @@ func (r *HospitalRepository) calculateDistance(lat1, lon1, lat2, lon2 float64) f
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return earthRadius * c
-}
-
-func toRadians(deg float64) float64 {
-	return deg * (math.Pi / 180)
 }

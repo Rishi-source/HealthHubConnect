@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"time"
 
+	"HealthHubConnect/internal/websocket"
+
 	"github.com/gorilla/mux"
 	"googlemaps.github.io/maps"
 	"gorm.io/gorm"
@@ -20,11 +22,16 @@ var (
 	server     *http.Server
 	Loggers    *logger.LoggerManager
 	MapsClient *maps.Client
+	WsManager  *websocket.Manager
 )
 
 func Init() error {
 	var err error
 	Loggers = logger.InitializeLogger(env.Logger)
+
+	// Initialize WebSocket Manager
+	WsManager = initWebSocket()
+	Loggers.GeneralLogger.Info().Msg("Successfully initialized WebSocket manager")
 
 	// Initialize Google Maps client
 	MapsClient, err = initGoogleMapsClient()
@@ -54,8 +61,8 @@ func Init() error {
 func InitServer(db *gorm.DB) error {
 	router := mux.NewRouter()
 
-	// Setup routes (including admin routes)
-	routes.SetupRoutes(router, db, MapsClient)
+	// Setup routes with WebSocket manager
+	routes.SetupRoutes(router, db, MapsClient, WsManager)
 
 	port := env.ServerPort
 	router.NotFoundHandler = http.HandlerFunc(handlers.StatusNotFoundHandler)
@@ -99,24 +106,27 @@ func Cleanup() error {
 }
 
 func initGoogleMapsClient() (*maps.Client, error) {
-	// Create with just the API key since other options aren't available
 	client, err := maps.NewClient(maps.WithAPIKey(env.GoogleMaps.APIKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Google Maps client: %w", err)
 	}
 
-	// Configure client through context timeouts when making requests
-	// The actual timeout will be set per-request using context
-
 	return client, nil
 }
 
-// Add a helper function to create context with timeout for Maps API calls
 func CreateMapsContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), env.GoogleMaps.RequestTimeout)
 }
-
-// Add this getter function to access MapsClient from other packages
 func GetMapsClient() *maps.Client {
 	return MapsClient
+}
+
+func initWebSocket() *websocket.Manager {
+	wsManager := websocket.NewManager()
+	go wsManager.Run()
+	return wsManager
+}
+
+func GetWebSocketManager() *websocket.Manager {
+	return WsManager
 }
