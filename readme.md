@@ -35,13 +35,14 @@ The power behind HealthHubConnect lies in the combination of a solid tech stack:
   
 - **Database:**
   - **PostgreSQL:** A powerful, open-source relational database to store user and provider information.
+  - **Sqlite:** For testing and dev 
 
 - **Infrastructure:**
   - **Docker:** For containerization and seamless deployment.
-  - **Kubernetes:** For scalable orchestration of backend services.
+  
 
 - **Cloud Integration:**
-  - **AWS/GCP/Azure:** Cloud infrastructure for high availability and performance.
+  - **Digital Ocean Droplet:** Cloud infrastructure for high availability and performance.
 
 ## 🏗️ Architecture Overview
 
