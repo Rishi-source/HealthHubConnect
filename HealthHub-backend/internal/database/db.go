@@ -32,6 +32,8 @@ var modelsToMigrate = []interface{}{
 
 func InitDB() error {
 	var err error
+
+	//using sqlite for tesing purposes only
 	db, err = gorm.Open(sqlite.Open("healthhub.db"), &gorm.Config{
 		PrepareStmt: true,
 	})
