@@ -5,6 +5,7 @@ import "time"
 type HealthProfile struct {
 	Base
 	UserID            uint               `json:"user_id" gorm:"uniqueIndex"`
+	User              *User              `json:"user" gorm:"foreignKey:UserID"`
 	DateOfBirth       time.Time          `json:"date_of_birth"`
 	Gender            string             `json:"gender"`
 	BloodType         string             `json:"blood_type"`

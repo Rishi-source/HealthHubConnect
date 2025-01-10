@@ -12,8 +12,9 @@ import (
 
 func RegisterAppointmentRoutes(router *mux.Router, db *gorm.DB) {
 	appointmentRepo := repositories.NewAppointmentRepository(db)
+	userRepo := repositories.NewUserRepository(db)
 	appointmentService := services.NewAppointmentService(appointmentRepo)
-	appointmentHandler := handlers.NewAppointmentHandler(appointmentService)
+	appointmentHandler := handlers.NewAppointmentHandler(appointmentService, userRepo)
 
 	p := router.PathPrefix("/appointments").Subrouter()
 	p.Use(middleware.AuthMiddleware)

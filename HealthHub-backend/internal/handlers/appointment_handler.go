@@ -4,34 +4,71 @@ import (
 	e "HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/services"
+	"HealthHubConnect/internal/utils"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/golang-jwt/jwt"
+	"HealthHubConnect/internal/repositories"
+
 	"github.com/gorilla/mux"
 )
 
 type AppointmentHandler struct {
 	appointmentService services.AppointmentService
+	userRepository     *repositories.UserRepository
 }
 
-func NewAppointmentHandler(appointmentService services.AppointmentService) *AppointmentHandler {
-	return &AppointmentHandler{appointmentService: appointmentService}
+func NewAppointmentHandler(appointmentService services.AppointmentService, userRepo *repositories.UserRepository) *AppointmentHandler {
+	return &AppointmentHandler{
+		appointmentService: appointmentService,
+		userRepository:     userRepo,
+	}
 }
 
 func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
-	var appointment models.Appointment
-	if err := json.NewDecoder(r.Body).Decode(&appointment); err != nil {
+	var req models.AppointmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	claims := r.Context().Value("claims").(jwt.MapClaims)
-	userID := uint(claims["user_id"].(float64))
-	appointment.PatientID = userID
+	// Parse date and time strings
+	date, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		http.Error(w, "Invalid date format. Use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
 
-	if err := h.appointmentService.CreateAppointment(&appointment); err != nil {
+	startTime, err := time.Parse("15:04:05", req.StartTime)
+	if err != nil {
+		http.Error(w, "Invalid start time format. Use HH:mm:ss", http.StatusBadRequest)
+		return
+	}
+
+	endTime, err := time.Parse("15:04:05", req.EndTime)
+	if err != nil {
+		http.Error(w, "Invalid end time format. Use HH:mm:ss", http.StatusBadRequest)
+		return
+	}
+
+	appointment := &models.Appointment{
+		DoctorID:    req.DoctorID,
+		Type:        req.Type,
+		Date:        date,
+		StartTime:   startTime,
+		EndTime:     endTime,
+		Description: req.Description,
+		Address:     req.Address,
+		Latitude:    req.Latitude,
+		Longitude:   req.Longitude,
+	}
+
+	claims := r.Context().Value("claims").(*utils.Claims)
+	appointment.PatientID = claims.UserID
+
+	if err := h.appointmentService.CreateAppointment(appointment); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -82,14 +119,20 @@ func (h *AppointmentHandler) GetAppointment(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AppointmentHandler) GetMyAppointments(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value("claims").(jwt.MapClaims)
-	userID := uint(claims["user_id"].(float64))
-	role := models.UserRole(claims["role"].(string))
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.userRepository.FindByID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	var appointments []models.Appointment
-	var err error
-
-	if role == models.RoleDoctor {
+	if user.Role == models.RoleDoctor {
 		appointments, err = h.appointmentService.GetDoctorAppointments(userID)
 	} else {
 		appointments, err = h.appointmentService.GetPatientAppointments(userID)
@@ -104,11 +147,19 @@ func (h *AppointmentHandler) GetMyAppointments(w http.ResponseWriter, r *http.Re
 }
 
 func (h *AppointmentHandler) SetDoctorAvailability(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value("claims").(jwt.MapClaims)
-	userID := uint(claims["user_id"].(float64))
-	role := models.UserRole(claims["role"].(string))
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 
-	if role != models.RoleDoctor {
+	user, err := h.userRepository.FindByID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if user.Role != models.RoleDoctor {
 		err := e.NewForbiddenError("only doctors can set availability")
 		http.Error(w, err.Error(), err.StatusCode)
 		return

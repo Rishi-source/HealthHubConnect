@@ -26,18 +26,46 @@ func NewAppointmentService(appointmentRepo repositories.AppointmentRepository) A
 }
 
 func (s *appointmentService) CreateAppointment(appointment *models.Appointment) error {
-	now := time.Now()
-	if appointment.Date.Before(now) {
-		return errors.New("appointment date cannot be in the past")
+	now := time.Now().In(time.Local)
+
+	// Create appointment date-time by combining date and time
+	appointmentDateTime := time.Date(
+		appointment.Date.Year(),
+		appointment.Date.Month(),
+		appointment.Date.Day(),
+		appointment.StartTime.Hour(),
+		appointment.StartTime.Minute(),
+		0, 0,
+		time.Local,
+	)
+
+	// Calculate minimum allowed appointment time (15 minutes from now)
+	minAllowedTime := now.Add(15 * time.Minute)
+
+	if appointmentDateTime.Before(minAllowedTime) {
+		return errors.New("appointment must be scheduled at least 15 minutes in advance")
+	}
+
+	// Create end date-time
+	endDateTime := time.Date(
+		appointment.Date.Year(),
+		appointment.Date.Month(),
+		appointment.Date.Day(),
+		appointment.EndTime.Hour(),
+		appointment.EndTime.Minute(),
+		0, 0,
+		time.Local,
+	)
+
+	if endDateTime.Before(appointmentDateTime) {
+		return errors.New("end time cannot be before start time")
 	}
 
 	if appointment.Type != models.TypeOnline && appointment.Type != models.TypeOffline {
 		return errors.New("invalid appointment type")
 	}
 
-	if appointment.EndTime.Before(appointment.StartTime) {
-		return errors.New("end time cannot be before start time")
-	}
+	// Rest of the availability check logic remains the same
 	availability, err := s.appointmentRepo.GetDoctorAvailability(appointment.DoctorID)
 	if err != nil {
 		return err
@@ -46,8 +74,8 @@ func (s *appointmentService) CreateAppointment(appointment *models.Appointment) 
 	isAvailable := false
 	for _, slot := range availability {
 		if slot.Date.Equal(appointment.Date) &&
-			!slot.StartTime.After(appointment.StartTime) &&
-			!slot.EndTime.Before(appointment.EndTime) {
+			!slot.StartTime.After(appointmentDateTime) &&
+			!slot.EndTime.Before(endDateTime) {
 			isAvailable = true
 			break
 		}
@@ -56,6 +84,10 @@ func (s *appointmentService) CreateAppointment(appointment *models.Appointment) 
 	if !isAvailable {
 		return errors.New("selected time slot is not available")
 	}
+
+	// Update the appointment with normalized times
+	appointment.StartTime = appointmentDateTime
+	appointment.EndTime = endDateTime
 
 	return s.appointmentRepo.CreateAppointment(appointment)
 }

@@ -1,0 +1,173 @@
+{
+    "info": {
+      "name": "Zocdoc API for HealthHub",
+      "description": "List of all Zocdoc API endpoints categorized by functionality for HealthHub connect.",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Provider Information",
+        "item": [
+          {
+            "name": "Get Provider by NPI",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/providers/{npi}"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Provider Locations",
+        "item": [
+          {
+            "name": "Get Provider Locations",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/provider_locations"
+            }
+          },
+          {
+            "name": "Get Specific Provider Location",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/provider_locations/{provider_location_id}"
+            }
+          },
+          {
+            "name": "Get Reviews for a Provider Location",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/provider_locations/{provider_location_id}/reviews"
+            }
+          },
+          {
+            "name": "Get Availability for a Provider Location",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/provider_locations/availability"
+            }
+          },
+          {
+            "name": "Get Accepted Insurance Plans for a Provider Location",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1-beta/provider_locations/{provider_location_id}/accepted_insurance_plans"
+            }
+          },
+          {
+            "name": "Update Accepted Insurance Plans for a Provider Location",
+            "request": {
+              "method": "PUT",
+              "url": "https://api.zocdoc.com/v1-beta/provider_locations/{provider_location_id}/accepted_insurance_plans"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Facilities",
+        "item": [
+          {
+            "name": "Get Facilities",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1-beta/facilities"
+            }
+          },
+          {
+            "name": "Get Specific Facility",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1-beta/facilities/{facility_id}"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Calendar Integration - Timeslots",
+        "item": [
+          {
+            "name": "Get Timeslots for a Provider",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/providers/{provider_id}/calendar/timeslots"
+            }
+          },
+          {
+            "name": "Update Timeslots for a Provider",
+            "request": {
+              "method": "PUT",
+              "url": "https://api.zocdoc.com/v1/providers/{provider_id}/calendar/timeslots"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Appointments",
+        "item": [
+          {
+            "name": "Create Appointment",
+            "request": {
+              "method": "POST",
+              "url": "https://api.zocdoc.com/v1/appointments"
+            }
+          },
+          {
+            "name": "Get Appointments",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/appointments"
+            }
+          },
+          {
+            "name": "Get Specific Appointment",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/appointments/{appointment_id}"
+            }
+          },
+          {
+            "name": "Get Participants for an Appointment",
+            "request": {
+              "method": "GET",
+              "url": "https://api.zocdoc.com/v1/appointments/{appointment_id}/participants"
+            }
+          },
+          {
+            "name": "Cancel Appointment",
+            "request": {
+              "method": "POST",
+              "url": "https://api.zocdoc.com/v1/appointments/cancel"
+            }
+          },
+          {
+            "name": "Confirm Appointment",
+            "request": {
+              "method": "POST",
+              "url": "https://api.zocdoc.com/v1/appointments/confirm"
+            }
+          },
+          {
+            "name": "Reschedule Appointment",
+            "request": {
+              "method": "POST",
+              "url": "https://api.zocdoc.com/v1/appointments/reschedule"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Webhook",
+        "item": [
+          {
+            "name": "Mock Webhook Behavior (Sandbox)",
+            "request": {
+              "method": "POST",
+              "url": "https://api.zocdoc.com/v1/webhook"
+            }
+          }
+        ]
+      }
+    ]
+  }
+  

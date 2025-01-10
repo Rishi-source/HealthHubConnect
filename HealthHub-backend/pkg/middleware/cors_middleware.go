@@ -9,7 +9,6 @@ import (
 
 func CorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Update allowed headers to include all necessary ones
 		env.Cors.AllowedHeaders = append(
 			env.Cors.AllowedHeaders,
 			"Accept-Encoding",

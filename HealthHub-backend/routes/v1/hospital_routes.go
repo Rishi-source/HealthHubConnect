@@ -12,7 +12,6 @@ import (
 )
 
 func RegisterHospitalRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client) {
-	// Initialize dependencies
 	repo := repositories.NewHospitalRepository(db)
 	service := services.NewHospitalService(repo, mapsClient)
 	handler := handlers.NewHospitalHandler(service)

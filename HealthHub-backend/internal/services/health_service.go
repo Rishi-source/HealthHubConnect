@@ -5,6 +5,7 @@ import (
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/repositories"
 	"context"
+	"time"
 )
 
 type HealthService struct {
@@ -38,10 +39,19 @@ func (s *HealthService) UpdateHealthProfile(ctx context.Context, profile *models
 		return e.NewInvalidParamError("user_id")
 	}
 
-	_, err := s.healthRepo.GetHealthProfile(ctx, profile.UserID)
+	// Check if profile exists
+	existingProfile, err := s.healthRepo.GetHealthProfile(ctx, profile.UserID)
 	if err != nil {
-		return e.NewObjectNotFoundError("health profile")
+		// If profile doesn't exist, create a new one
+		if _, ok := err.(*e.CustomError); ok && err.(*e.CustomError).ErrorCode == "NOT_FOUND" {
+			return s.healthRepo.CreateHealthProfile(ctx, profile)
+		}
+		return err
 	}
+
+	// Preserve created_at timestamp
+	profile.CreatedAt = existingProfile.CreatedAt
+	profile.LastUpdated = time.Now()
 
 	return s.healthRepo.UpdateHealthProfile(ctx, profile)
 }

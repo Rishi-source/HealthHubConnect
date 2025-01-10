@@ -36,6 +36,19 @@ type Appointment struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// AppointmentRequest represents the incoming request structure for creating appointments
+type AppointmentRequest struct {
+	DoctorID    uint            `json:"doctor_id" validate:"required"`
+	Type        AppointmentType `json:"type" validate:"required,oneof=ONLINE OFFLINE"`
+	Date        string          `json:"date" validate:"required"`       // Format: "2006-01-02"
+	StartTime   string          `json:"start_time" validate:"required"` // Format: "15:04:05"
+	EndTime     string          `json:"end_time" validate:"required"`   // Format: "15:04:05"
+	Description string          `json:"description"`
+	Address     string          `json:"address,omitempty"`
+	Latitude    float64         `json:"latitude,omitempty"`
+	Longitude   float64         `json:"longitude,omitempty"`
+}
+
 type DoctorAvailability struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	DoctorID  uint      `json:"doctor_id" gorm:"not null"`
