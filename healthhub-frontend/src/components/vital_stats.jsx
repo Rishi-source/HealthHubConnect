@@ -2,13 +2,13 @@ import React, { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Heart, Thermometer, Droplets, Clock, AlertCircle } from 'lucide-react';
 
-const VitalInput = memo(({ 
-  icon: Icon, 
-  label, 
-  type, 
-  field, 
-  value, 
-  unit, 
+const VitalInput = memo(({
+  icon: Icon,
+  label,
+  type,
+  field,
+  value,
+  unit,
   error,
   min,
   max,
@@ -17,7 +17,7 @@ const VitalInput = memo(({
   onFocus,
   onBlur,
   isFocused,
-  touched 
+  touched
 }) => (
   <div className="group animate-fadeIn min-h-[90px]">
     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -36,7 +36,7 @@ const VitalInput = memo(({
           w-full px-4 py-3 pl-12 rounded-xl border-2
           transition-colors duration-300 focus:outline-none
           ${error && touched
-            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20' 
+            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20'
             : 'border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20'
           }
           ${isFocused ? 'ring-4 ring-teal-500/20' : ''}
@@ -47,10 +47,10 @@ const VitalInput = memo(({
       <Icon className={`
         absolute left-4 top-1/3 transform -translate-y-1/2
         transition-colors duration-300
-        ${error && touched 
-          ? 'text-red-400' 
-          : isFocused 
-            ? 'text-teal-500' 
+        ${error && touched
+          ? 'text-red-400'
+          : isFocused
+            ? 'text-teal-500'
             : 'text-gray-400 group-hover:text-teal-500'
         }
       `} />
@@ -59,11 +59,11 @@ const VitalInput = memo(({
           {unit}
         </span>
       )}
-      
+
       <div className="h-6 mt-1">
         <AnimatePresence>
           {error && touched && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
@@ -79,17 +79,17 @@ const VitalInput = memo(({
   </div>
 ));
 
-const VitalStatsStep = ({ 
-  data = { 
+const VitalStatsStep = ({
+  data = {
     vitalSigns: {
       bloodPressure: [],
       heartRate: [],
       temperature: [],
       oxygenSaturation: []
-    } 
-  }, 
-  onChange, 
-  onValidationChange 
+    }
+  },
+  onChange,
+  onValidationChange
 }) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -108,7 +108,7 @@ const VitalStatsStep = ({
   };
 
   const handleVitalChange = (type, field, value) => {
-    const newData = { 
+    const newData = {
       ...data,
       vitalSigns: {
         ...(data.vitalSigns || {}),
@@ -125,7 +125,7 @@ const VitalStatsStep = ({
     const newErrors = { ...errors };
     let error = null;
 
-    switch(type) {
+    switch (type) {
       case 'bloodPressure':
         if (field === 'systolic') {
           error = validateReading(value, 70, 190, 'Systolic pressure');
@@ -159,7 +159,7 @@ const VitalStatsStep = ({
     setErrors(newErrors);
     onValidationChange(Object.keys(newErrors).length === 0);
     onChange(newData);
-    
+
     setTouched(prev => ({
       ...prev,
       [`${type}_${field}`]: true
@@ -174,7 +174,7 @@ const VitalStatsStep = ({
     setFocusedField(null);
     const [type, field] = fieldId.split('_');
     const value = data.vitalSigns?.[type]?.[0]?.[field];
-    
+
     setTouched(prev => ({
       ...prev,
       [fieldId]: true
@@ -182,10 +182,10 @@ const VitalStatsStep = ({
 
     const error = validateReading(
       value,
-      field === 'systolic' ? 70 : field === 'diastolic' ? 40 : 
-      field === 'beatsPerMinute' ? 40 : field === 'value' ? 35 : 80,
-      field === 'systolic' ? 190 : field === 'diastolic' ? 100 : 
-      field === 'beatsPerMinute' ? 200 : field === 'value' ? 42 : 100,
+      field === 'systolic' ? 70 : field === 'diastolic' ? 40 :
+        field === 'beatsPerMinute' ? 40 : field === 'value' ? 35 : 80,
+      field === 'systolic' ? 190 : field === 'diastolic' ? 100 :
+        field === 'beatsPerMinute' ? 200 : field === 'value' ? 42 : 100,
       `${type} ${field}`
     );
 
@@ -210,13 +210,13 @@ const VitalStatsStep = ({
   }, []);
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-8"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -278,7 +278,7 @@ const VitalStatsStep = ({
         />
       </motion.div>
 
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

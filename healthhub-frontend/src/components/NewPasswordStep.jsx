@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Lock, Eye, EyeOff, Check, Shield, Heart, 
+import {
+  Lock, Eye, EyeOff, Check, Shield, Heart,
   AlertCircle, LockKeyhole, Fingerprint, Key
 } from 'lucide-react';
 
@@ -68,7 +68,7 @@ const PasswordStrengthIndicator = ({ password, confirmPassword }) => {
   ];
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-3 bg-gray-50 p-4 rounded-xl"
@@ -82,7 +82,7 @@ const PasswordStrengthIndicator = ({ password, confirmPassword }) => {
           <motion.div
             key={index}
             initial={false}
-            animate={{ 
+            animate={{
               scale: req.met ? [1, 1.05, 1] : 1,
               transition: { duration: 0.2 }
             }}
@@ -114,7 +114,7 @@ const PasswordStrengthIndicator = ({ password, confirmPassword }) => {
   );
 };
 
-export const NewPasswordStep = ({ onSubmit }) => {
+export const NewPasswordStep = ({ email, otp, onSubmit }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -138,7 +138,7 @@ export const NewPasswordStep = ({ onSubmit }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validatePassword()) {
       return;
     }
@@ -147,32 +147,8 @@ export const NewPasswordStep = ({ onSubmit }) => {
       setIsLoading(true);
       setError('');
 
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          newPassword,
-          type: 'password_reset',
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to reset password');
-      }
-
-      const data = await response.json();
-      
-      if (response.json()) {
-        setIsSuccess(true);
-        setTimeout(async () => {
-          await onSubmit(newPassword);
-        }, 1500);
-      } else {
-        throw new Error('Password reset incomplete');
-      }
+      await onSubmit(newPassword);
+      setIsSuccess(true);
 
     } catch (error) {
       setError(error.message || 'Failed to reset password. Please try again.');
@@ -181,7 +157,6 @@ export const NewPasswordStep = ({ onSubmit }) => {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-teal-50 to-white">
       <div className="min-h-screen flex">
@@ -285,7 +260,7 @@ export const NewPasswordStep = ({ onSubmit }) => {
                     )}
                   </AnimatePresence>
 
-                  <PasswordStrengthIndicator 
+                  <PasswordStrengthIndicator
                     password={newPassword}
                     confirmPassword={confirmPassword}
                   />
@@ -334,11 +309,11 @@ export const NewPasswordStep = ({ onSubmit }) => {
 
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 via-blue-600 to-blue-700 relative overflow-hidden p-12 flex-col justify-between">
           <div className="absolute inset-0 bg-black/10" />
-          
+
           <HeartbeatLine top="20%" />
           <HeartbeatLine top="40%" />
           <HeartbeatLine top="60%" />
-          
+
           <PulseCircle delay={0} size="lg" />
           <PulseCircle delay={500} size="md" />
           <PulseCircle delay={1000} size="sm" />

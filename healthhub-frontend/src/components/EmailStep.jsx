@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Mail, ArrowRight, ArrowLeft, Shield, LockKeyhole, 
+import {
+  Mail, ArrowRight, ArrowLeft, Shield, LockKeyhole,
   Heart, Activity, Calendar, X, Fingerprint, AlertCircle
 } from 'lucide-react';
 
@@ -63,42 +63,20 @@ export const EmailStep = ({ onSubmit, onBack }) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!email) {
+      setError('Email is required');
+      return;
+    }
+
     if (!validateEmail(email)) {
       setError('Please enter a valid email address');
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          type: 'password_reset_request',
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to process request');
-      }
-
-      await response.json();
-      onSubmit(email);
-      
-    } catch (error) {
-      setError('An error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    onSubmit(email);
   };
 
   return (
@@ -211,7 +189,7 @@ export const EmailStep = ({ onSubmit, onBack }) => {
                         disabled={isLoading}
                       />
                     </div>
-                    
+
                     <AnimatePresence>
                       {error && (
                         <motion.div

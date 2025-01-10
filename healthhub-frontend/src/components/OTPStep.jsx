@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, ArrowRight, Check, LockKeyhole, RefreshCw, 
-  Sparkles, Heart, AlertCircle 
+import {
+  Shield, ArrowRight, Check, LockKeyhole, RefreshCw,
+  Sparkles, Heart, AlertCircle
 } from 'lucide-react';
 
 const HeartbeatLine = ({ top, opacity = 1 }) => {
@@ -60,9 +60,9 @@ const TimerCircle = ({ seconds, maxSeconds }) => {
   );
 };
 
-const OTPInput = ({ 
-  value, 
-  onChange, 
+const OTPInput = ({
+  value,
+  onChange,
   index,
   isFocused,
   onFocus,
@@ -111,12 +111,12 @@ const OTPInput = ({
             border-2 rounded-xl outline-none
             transition-all duration-300
             ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
-            ${isFocused 
-              ? 'border-teal-500 bg-teal-50/50 ring-4 ring-teal-500/20' 
+            ${isFocused
+              ? 'border-teal-500 bg-teal-50/50 ring-4 ring-teal-500/20'
               : 'border-gray-200 hover:border-gray-300'
             }
-            ${value 
-              ? 'bg-gradient-to-br from-teal-50 to-blue-50 text-teal-600' 
+            ${value
+              ? 'bg-gradient-to-br from-teal-50 to-blue-50 text-teal-600'
               : 'bg-white text-gray-700'
             }
             ${isAnimating ? 'animate-bounce-soft' : ''}
@@ -125,7 +125,7 @@ const OTPInput = ({
         />
       </motion.div>
 
-      <motion.div 
+      <motion.div
         className="mt-2 h-1.5 w-1.5 rounded-full mx-auto"
         animate={{
           scale: value ? 1 : 0.75,
@@ -134,16 +134,16 @@ const OTPInput = ({
       />
 
       {isAnimating && value && (
-        <Sparkles 
+        <Sparkles
           className="absolute top-0 right-0 text-teal-500 
-            transform -translate-y-1/2 translate-x-1/2 animate-ping" 
+            transform -translate-y-1/2 translate-x-1/2 animate-ping"
         />
       )}
     </div>
   );
 };
 
-export const OTPStep = ({ onSubmit, onBack , email, onVerificationComplete }) => {
+export const OTPStep = ({ onSubmit, onBack, email, onVerificationComplete }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
@@ -168,7 +168,7 @@ export const OTPStep = ({ onSubmit, onBack , email, onVerificationComplete }) =>
 
   const handleOTPChange = (index, value) => {
     if (value.length > 1 || !/^\d*$/.test(value)) return;
-    
+
     const newOTP = [...otp];
     newOTP[index] = value;
     setOtp(newOTP);
@@ -191,87 +191,46 @@ export const OTPStep = ({ onSubmit, onBack , email, onVerificationComplete }) =>
       e.preventDefault();
     }
   };
-
-  const makeAPICall = async (endpoint, data) => {
-    try {
-      const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) {
-        throw new Error('Request failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      throw new Error('An error occurred. Please try again.');
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!otp.every(digit => digit !== '')) {
-      setError('Please enter the complete OTP');
+      setError('Please enter the complete verification code');
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
     try {
-      await makeAPICall('/verify', {
-        email,
-        otp: otp.join(''),
-        type: 'otp_verification',
-        timestamp: new Date().toISOString()
-      });
-
+      await onSubmit(otp.join(''));
       setVerificationComplete(true);
-      onSubmit(otp);
-      setTimeout(() => {
-        onVerificationComplete?.();
-      }, 1000);
     } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
+      setError(error.message || 'Verification failed. Please try again.');
     }
   };
 
   const handleResend = async () => {
-    setIsLoading(true);
-    setError('');
+    if (!canResend) return;
 
     try {
-      await makeAPICall('/resend', {
-        email,
-        type: 'otp_resend',
-        timestamp: new Date().toISOString()
-      });
-
+      await onResendOTP();
       setCanResend(false);
       setTimer(30);
       setOtp(['', '', '', '', '', '']);
       setFocusedInput(0);
+      setError('');
     } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
+      setError('Failed to resend code. Please try again.');
     }
   };
 
   const isComplete = otp.every(digit => digit !== '');
+
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-teal-50 to-white">
       <div className="min-h-screen flex">
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 via-blue-600 to-blue-700 relative overflow-hidden p-12 flex-col justify-between">
           <div className="absolute inset-0 bg-black/10" />
-          
+
           <HeartbeatLine top="20%" />
           <HeartbeatLine top="40%" />
           <HeartbeatLine top="60%" />
@@ -346,7 +305,7 @@ export const OTPStep = ({ onSubmit, onBack , email, onVerificationComplete }) =>
                   </div>
 
                   {error && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="flex items-center gap-2 text-red-500 text-sm justify-center"

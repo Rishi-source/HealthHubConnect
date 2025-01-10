@@ -2,12 +2,12 @@ import React, { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Phone, MapPin, AlertCircle, Home, Building, Globe } from 'lucide-react';
 
-const InputField = memo(({ 
-  icon: Icon, 
-  label, 
-  name, 
-  type = "text", 
-  value = '', 
+const InputField = memo(({
+  icon: Icon,
+  label,
+  name,
+  type = "text",
+  value = '',
   onChange,
   onFocus,
   onBlur,
@@ -16,7 +16,7 @@ const InputField = memo(({
   isFocused,
   placeholder,
   required = false,
-  ...props 
+  ...props
 }) => (
   <div className="group min-h-[90px]">
     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -33,7 +33,7 @@ const InputField = memo(({
           w-full px-4 py-3 pl-12 rounded-xl border-2
           transition-colors duration-300
           ${error && touched
-            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20' 
+            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20'
             : 'border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20'
           }
           ${isFocused ? 'ring-4 ring-teal-500/20' : ''}
@@ -46,18 +46,18 @@ const InputField = memo(({
       <Icon className={`
         absolute left-4 top-1/3 transform -translate-y-1/2
         transition-colors duration-300
-        ${error && touched 
-          ? 'text-red-400' 
-          : isFocused 
-            ? 'text-teal-500' 
+        ${error && touched
+          ? 'text-red-400'
+          : isFocused
+            ? 'text-teal-500'
             : 'text-gray-400 group-hover:text-teal-500'
         }
       `} />
-      
+
       <div className="h-6 mt-1">
         <AnimatePresence>
           {error && touched && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
@@ -73,7 +73,7 @@ const InputField = memo(({
   </div>
 ));
 
-const ContactDetailsStep = ({ 
+const ContactDetailsStep = ({
   data = {
     address: {
       street: '',
@@ -82,9 +82,9 @@ const ContactDetailsStep = ({
       postalCode: '',
       country: ''
     }
-  }, 
-  onChange = () => {}, 
-  onValidationChange = () => {} 
+  },
+  onChange = () => { },
+  onValidationChange = () => { }
 }) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -95,9 +95,9 @@ const ContactDetailsStep = ({
 
   const validateField = (name, value) => {
     if (!value?.trim()) {
-      if (name === 'address.street' || 
-          name === 'address.city' || 
-          name === 'address.country') {
+      if (name === 'address.street' ||
+        name === 'address.city' ||
+        name === 'address.country') {
         return `${name.split('.').pop().charAt(0).toUpperCase() + name.split('.').pop().slice(1)} is required`;
       }
     }
@@ -119,7 +119,7 @@ const ContactDetailsStep = ({
 
   const handleChange = (name, value) => {
     const newData = { ...data };
-    
+
     if (name.startsWith('address.')) {
       const addressField = name.split('.')[1];
       newData.address = {
@@ -129,13 +129,13 @@ const ContactDetailsStep = ({
     } else {
       newData[name] = value;
     }
-    
+
     const error = validateField(name, value);
     setErrors(prev => ({
       ...prev,
       [name]: error
     }));
-    
+
     setTouched(prev => ({
       ...prev,
       [name]: true
@@ -151,7 +151,7 @@ const ContactDetailsStep = ({
 
   const handleBlur = (name) => {
     setFocusedField(null);
-    const value = name.includes('address.') 
+    const value = name.includes('address.')
       ? data.address[name.split('.')[1]]
       : data[name];
     const error = validateField(name, value);
@@ -185,7 +185,7 @@ const ContactDetailsStep = ({
 
   return (
     <div className="space-y-6">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"

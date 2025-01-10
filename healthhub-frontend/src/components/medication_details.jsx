@@ -129,7 +129,7 @@ const StepIndicator = ({ currentStep, step, index, completedSteps, skippedSteps 
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       className={`
-        flex items-center gap-2 py-2 px-4 rounded-lg
+        flex items-center gap-2 py-2 px-3 md:px-4 rounded-lg shrink-0
         ${isActive ? 'bg-teal-50 text-teal-600' : ''}
         ${isCompleted ? 'text-green-500' : ''}
         ${isSkipped ? 'text-gray-400' : ''}
@@ -140,7 +140,7 @@ const StepIndicator = ({ currentStep, step, index, completedSteps, skippedSteps 
       <motion.div
         whileHover={{ scale: 1.1 }}
         className={`
-          w-16 h-8 rounded-full flex items-center justify-center
+          w-12 md:w-16 h-8 rounded-full flex items-center justify-center shrink-0
           ${isActive ? 'bg-teal-500 text-white' : ''}
           ${isCompleted ? 'bg-green-500 text-white' : ''}
           ${isSkipped ? 'bg-gray-200 text-gray-400' : ''}
@@ -154,7 +154,9 @@ const StepIndicator = ({ currentStep, step, index, completedSteps, skippedSteps 
           <StepIcon className="w-5 h-5" />
         )}
       </motion.div>
-      <span className="font-medium whitespace-nowrap">{step.title}</span>
+      <span className="font-medium whitespace-nowrap text-sm md:text-base">
+        {step.title}
+      </span>
     </motion.div>
   );
 };
@@ -283,6 +285,7 @@ const HealthProfileForm = ({ initialData, onComplete }) => {
         totalSteps={FORM_STEPS.length}
       />
 
+
       <AnimatePresence>
         {showAlert && (
           <motion.div
@@ -308,17 +311,46 @@ const HealthProfileForm = ({ initialData, onComplete }) => {
       </AnimatePresence>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="flex gap-4 min-w-max px-4 mx-auto">
-          {FORM_STEPS.map((step, index) => (
-            <StepIndicator
-              key={step.id}
-              currentStep={currentStep}
-              step={step}
-              index={index}
-              completedSteps={completedSteps}
-              skippedSteps={skippedSteps}
-            />
-          ))}
+        <div className="relative w-full overflow-x-auto mb-8">
+          <div className="flex justify-start md:justify-center items-center gap-4 lg:gap-6 min-w-max w-[1000px] lg:w-[1000px] px-6 mx-auto pb-4">
+            {FORM_STEPS.map((step, index) => (
+              <StepIndicator
+                key={step.id}
+                currentStep={currentStep}
+                step={step}
+                index={index}
+                completedSteps={completedSteps}
+                skippedSteps={skippedSteps}
+              />
+            ))}
+          </div>
+
+          <style jsx global>{`
+    .overflow-x-auto {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar {
+      height: 4px;
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+      background-color: rgba(156, 163, 175, 0.5);
+      border-radius: 2px;
+    }
+    
+    @media (max-width: 768px) {
+      .overflow-x-auto {
+        padding-bottom: 12px;
+      }
+    }
+  `}</style>
         </div>
         <div className="max-w-4xl mx-auto">
           <div className="overflow-x-auto pb-4 mb-8 hide-scrollbar">
@@ -360,7 +392,7 @@ const HealthProfileForm = ({ initialData, onComplete }) => {
               <CurrentStepComponent
                 data={formData}
                 onChange={handleDataChange}
-                onComplete={handleSubmit} 
+                onComplete={handleSubmit}
                 isSubmitting={isSubmitting}
                 onEditSection={(sectionId) => {
                   const stepIndex = FORM_STEPS.findIndex(step => step.id === sectionId);

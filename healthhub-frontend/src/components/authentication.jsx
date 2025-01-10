@@ -10,13 +10,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const buildGoogleOAuthURL = () => {
   const params = {
     client_id: '232880583599-2ub31l5n5iuho98avcqr0bbhtu5gesb6.apps.googleusercontent.com',
-    // Use the exact redirect URI from your Google Cloud Console
-    redirect_uri: 'https://anochat.in/v1/auth/google/callback', // Using absolute URL instead of template string
+    redirect_uri: 'https://anochat.in/v1/auth/google/callback',
     response_type: 'code',
     scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
     state: 'random-string'
   };
-  
+
   return 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams(params).toString();
 };
 
@@ -24,13 +23,12 @@ const buildGoogleOAuthURL = () => {
 
 
 const useGoogleAuth = (navigate) => {
-  // Function to initiate Google Login
   const initiateGoogleLogin = async () => {
     try {
       console.log('Initiating Google login...');
       const response = await fetch('https://anochat.in/v1/auth/google/login');
       const result = await response.json();
-      
+
       if (result.success && result.code === 200 && result.data.url) {
         console.log('Redirecting to:', result.data.url);
         window.location.href = result.data.url;
@@ -43,7 +41,6 @@ const useGoogleAuth = (navigate) => {
     }
   };
 
-  // Function to handle the callback from Google
   const handleGoogleCallback = async (code, state) => {
     try {
       console.log('Processing Google callback with code:', code);
@@ -51,12 +48,10 @@ const useGoogleAuth = (navigate) => {
       const data = await response.json();
 
       if (data.success) {
-        // Store tokens and user data
         localStorage.setItem('accessToken', data.tokens.access_token);
         localStorage.setItem('refreshToken', data.tokens.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Navigate to profile page directly
+
         navigate('/profile');
         return data;
       } else {
@@ -70,7 +65,6 @@ const useGoogleAuth = (navigate) => {
 
   return { initiateGoogleLogin, handleGoogleCallback };
 };
-// UI Components
 const HeartbeatLine = ({ top, opacity = 1 }) => {
   return (
     <div
@@ -124,7 +118,6 @@ const AuthPage = ({ onComplete }) => {
   const location = useLocation();
   const { initiateGoogleLogin, handleGoogleCallback } = useGoogleAuth(navigate);
 
-  // State management
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -143,12 +136,11 @@ const AuthPage = ({ onComplete }) => {
   const [passwordsMatch, setPasswordsMatch] = useState(true);
   const [passwordError, setPasswordError] = useState('');
 
-  // Handle Google callback on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
-  
+
     if (code && state) {
       setGoogleLoading(true);
       handleGoogleCallback(code, state)
@@ -172,7 +164,6 @@ const AuthPage = ({ onComplete }) => {
     }
   }, [location, handleGoogleCallback, navigate]);
 
-  // Validation functions
   const validatePhone = (phone) => {
     const regex = /^[0-9]{10}$/;
     return regex.test(phone);
@@ -196,7 +187,6 @@ const AuthPage = ({ onComplete }) => {
     }
   };
 
-  // Form validation
   const isFormValid = () => {
     if (isLogin) {
       return formData.email && formData.password && validateEmail(formData.email);
@@ -211,7 +201,6 @@ const AuthPage = ({ onComplete }) => {
     }
   };
 
-  // Handle Google login button click
   const handleGoogleLoginClick = async () => {
     try {
       setGoogleLoading(true);
@@ -223,7 +212,6 @@ const AuthPage = ({ onComplete }) => {
     }
   };
 
-  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -245,7 +233,6 @@ const AuthPage = ({ onComplete }) => {
     }
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid()) return;
@@ -254,7 +241,6 @@ const AuthPage = ({ onComplete }) => {
     setError('');
 
     try {
-      // Login flow
       if (isLogin) {
         const response = await fetch('https://anochat.in/v1/auth/login', {
           method: 'POST',
@@ -268,60 +254,76 @@ const AuthPage = ({ onComplete }) => {
         });
 
         const data = await response.json();
+        console.log('Login response:', data);
 
-        if (data.success) {
+        if (response.ok && data.success) {
           setFormComplete(true);
+          const { access_token, refresh_token } = data.data.tokens;
+          localStorage.setItem('access_token', access_token);
+          localStorage.setItem('refresh_token', refresh_token);
           localStorage.setItem('user', JSON.stringify(data.data.user));
-          setTimeout(() => {
-            setIsLoading(false);
-            setFormComplete(false);
-            // Navigate to OTP verification for email login
-            onComplete(formData.email);
-          }, 1000);
+          navigate('/dashboard');
         } else {
           throw new Error(data.message || 'Login failed');
         }
       }
-      // Signup flow
       else {
-        const response = await fetch('https://anochat.in/v1/auth/signup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: formData.fullName,
-            email: formData.email,
-            password: formData.password,
-            phone: parseInt(formData.phoneNumber, 10)
-          })
-        });
+        try {
+          let signupResponse = await fetch('https://anochat.in/v1/auth/signup', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: formData.fullName,
+              email: formData.email,
+              password: formData.password,
+              phone: parseInt(formData.phoneNumber, 10)
+            })
+          });
 
-        const data = await response.json();
+          const signupData = await signupResponse.json();
 
-        if (data.success) {
-          localStorage.setItem('user', JSON.stringify(data.data.user));
-          setFormComplete(true);
+          if (signupData.success) {
+            if (signupData.data.tokens) {
+              const { access_token, refresh_token } = signupData.data.tokens;
+              localStorage.setItem('access_token', access_token);
+              localStorage.setItem('refresh_token', refresh_token);
+            }
 
-          setTimeout(() => {
-            setIsLoading(false);
-            setFormComplete(false);
-            // Navigate to OTP verification for email signup
-            onComplete(formData.email);
-          }, 1000);
-        } else {
-          throw new Error(data.message || 'Signup failed');
+            localStorage.setItem('user', JSON.stringify(signupData.data.user));
+
+            setFormComplete(true);
+
+            if (typeof onComplete === 'function') {
+              onComplete(formData.email);
+            }
+
+            setFormData({
+              email: '',
+              password: '',
+              confirmPassword: '',
+              fullName: '',
+              phoneNumber: ''
+            });
+          } else {
+            throw new Error(signupData.message || 'Signup failed');
+          }
+        } catch (error) {
+          console.error('Signup error:', error);
+          throw new Error(error.message || 'Failed to create account');
         }
       }
     } catch (error) {
       setError(error.message || 'An unexpected error occurred');
+    } finally {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-teal-50 to-white overflow-hidden">
       <div className="min-h-screen flex flex-col lg:flex-row">
-        {/* Left Section */}
         <div className="lg:w-1/2 bg-gradient-to-br from-teal-600 via-blue-600 to-blue-700 p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute top-10 left-10">
@@ -408,19 +410,51 @@ const AuthPage = ({ onComplete }) => {
             <div className="pt-8 border-t border-white/20">
               <div className="flex items-center gap-6">
                 <div className="flex -space-x-4">
-                  {[...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="relative w-12 h-12 rounded-full bg-white/10 overflow-hidden hover:translate-y-1 transition-transform"
-                    >
-                      <img
-                        src="/api/placeholder/48/48"
-                        alt="User avatar"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 animate-pulse-soft" />
-                    </div>
-                  ))}
+                  <div
+                    key={1}
+                    className="relative w-12 h-12 rounded-full bg-white/10 overflow-hidden hover:translate-y-1 transition-transform"
+                  >
+                    <img
+                      src="/image.png"
+                      alt="User avatar"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 animate-pulse-soft" />
+                  </div>
+                  <div
+                    key={2}
+                    className="relative w-12 h-12 rounded-full bg-white/10 overflow-hidden hover:translate-y-1 transition-transform"
+                  >
+                    <img
+                      src="/image copy.png"
+                      alt="User avatar"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 animate-pulse-soft" />
+                  </div>
+                  <div
+                    key={3}
+                    className="relative w-12 h-12 rounded-full bg-white/10 overflow-hidden hover:translate-y-1 transition-transform"
+                  >
+                    <img
+                      src="/image copy 3.png"
+                      alt="User avatar"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 animate-pulse-soft" />
+                  </div>
+                  <div
+                    key={4}
+                    className="relative w-12 h-12 rounded-full bg-white/10 overflow-hidden hover:translate-y-1 transition-transform"
+                  >
+                    <img
+                      src="/image copy 2.png"
+                      alt="User avatar"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 animate-pulse-soft" />
+                  </div>
+
                 </div>
                 <div>
                   <div className="text-lg text-white font-medium">
@@ -435,7 +469,6 @@ const AuthPage = ({ onComplete }) => {
           </div>
         </div>
 
-        {/* Right Section */}
         <div className="lg:w-1/2 p-8 lg:p-16 flex flex-col justify-center bg-white/80 backdrop-blur-lg">
           <div className="max-w-md mx-auto w-full">
             <div className="flex justify-between items-center mb-12">

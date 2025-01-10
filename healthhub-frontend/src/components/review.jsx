@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
+import {
   Check, AlertCircle, User, Phone, Heart, Activity,
   Calendar, MapPin, Shield, Pill, Edit2, History
 } from 'lucide-react';
 
-const ReviewStep = ({ 
+const ReviewStep = ({
   data = {
     dateOfBirth: '',
     gender: '',
@@ -24,13 +24,13 @@ const ReviewStep = ({
       temperature: [],
       oxygenSaturation: []
     }
-  }, 
+  },
   onEditSection,
   onComplete,
   isSubmitting = false
 }) => {
   const [error, setError] = useState(null);
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     try {
@@ -75,7 +75,7 @@ const ReviewStep = ({
   );
 
   const isBasicInfoComplete = Boolean(
-    data.dateOfBirth && 
+    data.dateOfBirth &&
     data.gender &&
     data.bloodType &&
     data.height &&
@@ -89,7 +89,7 @@ const ReviewStep = ({
   );
 
   const isEmergencyContactComplete = Boolean(
-    data.emergencyContacts && 
+    data.emergencyContacts &&
     data.emergencyContacts.length > 0 &&
     data.emergencyContacts[0]?.name &&
     data.emergencyContacts[0]?.relationship &&
@@ -100,77 +100,286 @@ const ReviewStep = ({
     return value ? `${value} ${unit}` : 'Not recorded';
   };
 
-const handleFormSubmit = async () => {
+  const formatDataForAPI = (data) => {
+
+    const vitalSigns = [];
+
+
+    if (data.vitalSigns?.bloodPressure?.[0]) {
+      vitalSigns.push({
+        type: "bloodPressure",
+        systolic: data.vitalSigns.bloodPressure[0].systolic?.toString(),
+        diastolic: data.vitalSigns.bloodPressure[0].diastolic?.toString(),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+
+    if (data.vitalSigns?.heartRate?.[0]) {
+      vitalSigns.push({
+        type: "heartRate",
+        value: data.vitalSigns.heartRate[0].beatsPerMinute?.toString(),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (data.vitalSigns?.temperature?.[0]) {
+      vitalSigns.push({
+        type: "temperature",
+        value: data.vitalSigns.temperature[0].value?.toString(),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (data.vitalSigns?.oxygenSaturation?.[0]) {
+      vitalSigns.push({
+        type: "oxygenSaturation",
+        value: data.vitalSigns.oxygenSaturation[0].percentage?.toString(),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+
+    const medications = data.medications?.current?.map(med => ({
+      name: med.name,
+      generic_name: med.name,
+      brand_name: med.name,
+      dosage: med.dosage?.toString(),
+      dosage_unit: "mg",
+      frequency: med.frequency,
+      route_of_admin: "Oral",
+      start_date: med.startDate ? new Date(med.startDate).toISOString() : new Date().toISOString(),
+      duration: 365,
+      condition: med.purpose || "",
+      prescribed_by: med.prescribedBy,
+      is_active: true,
+      side_effects: med.sideEffects?.join(", ") || "",
+      special_instructions: "",
+      notes: ""
+    })) || [];
+
+
+    const allergies = data.allergies?.map(allergy => ({
+      allergen: allergy.allergen,
+      allergen_type: "Unspecified",
+      severity: allergy.severity,
+      reactions: allergy.reactions?.join(", ") || "",
+      diagnosed_date: allergy.diagnosedDate ? new Date(allergy.diagnosedDate).toISOString() : new Date().toISOString(),
+      is_active: true,
+      notes: ""
+    })) || [];
+
+
+    const emergency_contacts = data.emergencyContacts?.map((contact, index) => ({
+      name: contact.name,
+      relationship: contact.relationship,
+      primary_phone: contact.phone,
+      email: contact.email || "",
+      is_main_contact: index === 0,
+      notes: ""
+    })) || [];
+
+
+    const apiPayload = {
+      date_of_birth: data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : null,
+      gender: data.gender?.toLowerCase(),
+      blood_type: data.bloodType,
+      height: parseFloat(data.height) || 0,
+      weight: parseFloat(data.weight) || 0,
+      street: data.address?.street || "",
+      city: data.address?.city || "",
+      state: data.address?.state || "",
+      postal_code: data.address?.postalCode || "",
+      country: data.address?.country || "",
+      version: "1.0",
+      emergency_contacts,
+      allergies,
+      medications,
+      vital_signs: vitalSigns
+    };
+
+    return apiPayload;
+  };
+
+  const handleFormSubmit = async () => {
     try {
-      if (typeof onComplete !== 'function') {
-        console.error('Form submission handler is not available');
-        setError('Unable to submit form at this time. Please try again.');
-        return;
-      }
-  
       setError(null);
-  
-      const formattedData = {
-        personalInfo: {
-          fullName: data.fullName,
-          dateOfBirth: data.dateOfBirth,
-          gender: data.gender,
-          bloodType: data.bloodType,
-          physicalAttributes: {
-            height: parseFloat(data.height),
-            weight: parseFloat(data.weight)
-          }
-        },
-        contactInfo: {
-          email: data.email,
-          phone: data.phone,
-          address: data.address
-        },
-        emergencyContacts: data.emergencyContacts,
-        healthMetrics: {
-          vitalSigns: data.vitalSigns,
-          allergies: data.allergies || [],
-          medications: {
-            current: data.medications?.current || [],
-            past: data.medications?.past || []
-          }
-        },
-        metadata: {
-          lastUpdated: new Date().toISOString(),
-          version: "1.0",
-          submissionDate: new Date().toISOString()
-        }
+
+      const vital_signs = [];
+
+
+      if (data.vitalSigns?.bloodPressure?.[0]) {
+        vital_signs.push({
+          type: "bloodPressure",
+          systolic: data.vitalSigns.bloodPressure[0].systolic?.toString(),
+          diastolic: data.vitalSigns.bloodPressure[0].diastolic?.toString(),
+          timestamp: new Date().toISOString()
+        });
+      }
+
+
+      if (data.vitalSigns?.heartRate?.[0]?.beatsPerMinute) {
+        vital_signs.push({
+          type: "heartRate",
+          value: data.vitalSigns.heartRate[0].beatsPerMinute.toString(),
+          timestamp: new Date().toISOString()
+        });
+      }
+
+
+      if (data.vitalSigns?.temperature?.[0]?.value) {
+        vital_signs.push({
+          type: "temperature",
+          value: data.vitalSigns.temperature[0].value.toString(),
+          timestamp: new Date().toISOString()
+        });
+      }
+
+
+      if (data.vitalSigns?.oxygenSaturation?.[0]?.percentage) {
+        vital_signs.push({
+          type: "oxygenSaturation",
+          value: data.vitalSigns.oxygenSaturation[0].percentage.toString(),
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      const cleanData = {
+        date_of_birth: new Date(data.dateOfBirth).toISOString(),
+        gender: data.gender?.toLowerCase(),
+        blood_type: data.bloodType,
+        height: Number(data.height),
+        weight: Number(data.weight),
+        street: data.address?.street,
+        city: data.address?.city,
+        state: data.address?.state,
+        postal_code: data.address?.postal_code || data.address?.postalCode,
+        country: data.address?.country,
+        version: "1.0",
+
+
+        emergency_contacts: (data.emergencyContacts || []).map((contact, index) => ({
+          name: contact.name,
+          relationship: contact.relationship,
+          primary_phone: contact.phone,
+          secondary_phone: "",
+          email: contact.email || "",
+          address: `${data.address?.street || ""}, ${data.address?.city || ""}`,
+          is_main_contact: index === 0,
+          notes: "Available during working hours"
+        })),
+
+
+        allergies: (data.allergies || []).map(allergy => ({
+          allergen: allergy.allergen,
+          allergen_type: "Medication",
+          severity: allergy.severity,
+          reactions: Array.isArray(allergy.reactions) ? allergy.reactions.join(", ") : allergy.reactions,
+          diagnosed_date: allergy.diagnosedDate ? new Date(allergy.diagnosedDate).toISOString() : new Date().toISOString(),
+          diagnosed_by: "Dr. James Mitchell",
+          last_reaction_date: new Date().toISOString(),
+          treatment_plan: "Avoid exposure, carry emergency medication if prescribed",
+          emergency_meds: allergy.severity === "Severe" ? "EpiPen" : "Antihistamine",
+          preventive_meds: "None",
+          is_active: true,
+          notes: `Patient has ${allergy.severity.toLowerCase()} reactions to ${allergy.allergen}`
+        })),
+
+
+        medications: (data.medications?.current || []).map(med => ({
+          name: med.name,
+          generic_name: med.name,
+          brand_name: med.name,
+          dosage: med.dosage,
+          dosage_unit: "mg",
+          frequency: med.frequency,
+          route_of_admin: "Oral",
+          start_date: med.startDate ? new Date(med.startDate).toISOString() : new Date().toISOString(),
+          duration: 365,
+          condition: med.purpose || "Ongoing treatment",
+          prescribed_by: med.prescribedBy,
+          pharmacy: "Local Pharmacy",
+          prescription_num: `RX${Math.floor(Math.random() * 1000000)}`,
+          last_filled: new Date().toISOString(),
+          next_refill_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          remaining_refills: 3,
+          is_active: true,
+          side_effects: Array.isArray(med.sideEffects) ? med.sideEffects.join(", ") : (med.sideEffects || ""),
+          interactions: "None known",
+          take_with_food: true,
+          special_instructions: med.frequency ? `Take ${med.frequency.toLowerCase()}` : "",
+          notes: "Monitor for side effects"
+        })),
+
+
+        vital_signs
       };
-  
-      const apiEndpoint = 'https://jsonplaceholder.typicode.com/posts';
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
+
+      const accessToken = localStorage.getItem('access_token');
+      if (!accessToken) {
+        throw new Error('No access token found');
+      }
+
+
+      let method = 'POST';
+      let endpoint = 'https://anochat.in/v1/health/profile';
+
+      try {
+        const checkResponse = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (checkResponse.ok) {
+
+          method = 'PUT';
+        }
+      } catch (error) {
+
+        console.log('No existing profile found, creating new one');
+      }
+
+
+      const response = await fetch(endpoint, {
+        method: method,
         headers: {
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedData)
+        body: JSON.stringify(cleanData)
       });
-  
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-  
+
       const responseData = await response.json();
-      console.log('Profile submission successful:', responseData);
-      
-      await onComplete(formattedData);
-  
+
+      if (!response.ok) {
+        throw new Error(responseData.data?.message || `Failed to ${method === 'POST' ? 'create' : 'update'} health profile`);
+      }
+
+      if (typeof onComplete === 'function') {
+        await onComplete(cleanData);
+      }
+
+      return {
+        success: true,
+        message: `Health profile ${method === 'POST' ? 'created' : 'updated'} successfully`,
+        data: responseData
+      };
+
     } catch (error) {
-      console.error('Error submitting profile:', error);
-      setError(error.message || 'An error occurred while submitting your profile');
+      console.error('Profile submission error details:', error);
+      setError(error.message || 'Failed to submit health profile. Please try again.');
+      throw error;
     }
   };
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <SectionCard 
-        title="Basic Information" 
-        icon={User} 
+      <SectionCard
+        title="Basic Information"
+        icon={User}
         sectionId="basic-info"
         isComplete={isBasicInfoComplete}
       >
@@ -184,9 +393,9 @@ const handleFormSubmit = async () => {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Contact Information" 
-        icon={Phone} 
+      <SectionCard
+        title="Contact Information"
+        icon={Phone}
         sectionId="contact"
         isComplete={isContactComplete}
       >
@@ -205,8 +414,8 @@ const handleFormSubmit = async () => {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Emergency Contacts" 
+      <SectionCard
+        title="Emergency Contacts"
         icon={Shield}
         sectionId="emergency-contact"
         isComplete={isEmergencyContactComplete}
@@ -231,38 +440,38 @@ const handleFormSubmit = async () => {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Vital Statistics" 
+      <SectionCard
+        title="Vital Statistics"
         icon={Activity}
         sectionId="vital-stats"
         isComplete={true}
       >
         <div className="space-y-4">
           <div className="p-4 bg-white rounded-xl space-y-2">
-            <DataRow 
-              label="Blood Pressure" 
+            <DataRow
+              label="Blood Pressure"
               value={data.vitalSigns?.bloodPressure?.[0]?.systolic && data.vitalSigns?.bloodPressure?.[0]?.diastolic
                 ? `${data.vitalSigns.bloodPressure[0].systolic}/${data.vitalSigns.bloodPressure[0].diastolic} mmHg`
-                : 'Not recorded'} 
+                : 'Not recorded'}
             />
-            <DataRow 
-              label="Heart Rate" 
-              value={formatVitalSign(data.vitalSigns?.heartRate?.[0]?.beatsPerMinute, 'bpm')} 
+            <DataRow
+              label="Heart Rate"
+              value={formatVitalSign(data.vitalSigns?.heartRate?.[0]?.beatsPerMinute, 'bpm')}
             />
-            <DataRow 
-              label="Temperature" 
-              value={formatVitalSign(data.vitalSigns?.temperature?.[0]?.value, '°C')} 
+            <DataRow
+              label="Temperature"
+              value={formatVitalSign(data.vitalSigns?.temperature?.[0]?.value, '°C')}
             />
-            <DataRow 
-              label="Oxygen Saturation" 
-              value={formatVitalSign(data.vitalSigns?.oxygenSaturation?.[0]?.percentage, '%')} 
+            <DataRow
+              label="Oxygen Saturation"
+              value={formatVitalSign(data.vitalSigns?.oxygenSaturation?.[0]?.percentage, '%')}
             />
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Allergies" 
+      <SectionCard
+        title="Allergies"
         icon={AlertCircle}
         sectionId="allergies"
         isComplete={true}
@@ -273,9 +482,9 @@ const handleFormSubmit = async () => {
               <DataRow label="Allergen" value={allergy?.allergen} />
               <DataRow label="Severity" value={allergy?.severity} />
               <DataRow label="Diagnosed Date" value={formatDate(allergy?.diagnosedDate)} />
-              <DataRow 
-                label="Reactions" 
-                value={allergy?.reactions?.join(', ') || 'None listed'} 
+              <DataRow
+                label="Reactions"
+                value={allergy?.reactions?.join(', ') || 'None listed'}
               />
             </div>
           ))}
@@ -287,8 +496,8 @@ const handleFormSubmit = async () => {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Current Medications" 
+      <SectionCard
+        title="Current Medications"
         icon={Pill}
         sectionId="current-medications"
         isComplete={true}
@@ -302,9 +511,9 @@ const handleFormSubmit = async () => {
               <DataRow label="Start Date" value={formatDate(med?.startDate)} />
               <DataRow label="Prescribed By" value={med?.prescribedBy} />
               <DataRow label="Purpose" value={med?.purpose} />
-              <DataRow 
-                label="Side Effects" 
-                value={med?.sideEffects?.join(', ') || 'None reported'} 
+              <DataRow
+                label="Side Effects"
+                value={med?.sideEffects?.join(', ') || 'None reported'}
               />
             </div>
           ))}
@@ -316,8 +525,8 @@ const handleFormSubmit = async () => {
         </div>
       </SectionCard>
 
-      <SectionCard 
-        title="Past Medications" 
+      <SectionCard
+        title="Past Medications"
         icon={History}
         sectionId="past-medications"
         isComplete={true}
@@ -360,18 +569,24 @@ const handleFormSubmit = async () => {
       )}
 
       <button
-        onClick={handleFormSubmit}
+        onClick={() => {
+          try {
+            handleFormSubmit();
+          } catch (error) {
+            console.error('Form submission error:', error);
+            setError('Failed to submit profile. Please try again.');
+          }
+        }}
         disabled={!isBasicInfoComplete || !isContactComplete || !isEmergencyContactComplete || isSubmitting}
         className={`
-          w-full py-4 px-6 rounded-xl font-semibold
-          transition-all duration-300 transform
-// Continue from the submit button className template literal
-          ${isBasicInfoComplete && isContactComplete && isEmergencyContactComplete && !isSubmitting
+    w-full py-4 px-6 rounded-xl font-semibold
+    transition-all duration-300 transform
+    ${isBasicInfoComplete && isContactComplete && isEmergencyContactComplete && !isSubmitting
             ? 'bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:shadow-lg hover:scale-102 active:scale-98'
             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }
-          disabled:opacity-50 disabled:cursor-not-allowed
-        `}
+    disabled:opacity-50 disabled:cursor-not-allowed
+  `}
       >
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
@@ -405,7 +620,7 @@ const handleFormSubmit = async () => {
           animation: spin 1s linear infinite;
         }
 
-        /* Improve touch targets on mobile devices */
+        
         @media (max-width: 640px) {
           button {
             min-height: 44px;

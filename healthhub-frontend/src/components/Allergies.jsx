@@ -2,11 +2,11 @@ import React, { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Plus, X, Calendar, AlertCircle } from 'lucide-react';
 
-const InputField = memo(({ 
-  label, 
-  value = '', 
-  onChange, 
-  error, 
+const InputField = memo(({
+  label,
+  value = '',
+  onChange,
+  error,
   touched,
   required = false,
   placeholder,
@@ -30,7 +30,7 @@ const InputField = memo(({
           w-full px-4 py-3 rounded-xl border-2
           transition-colors duration-300 focus:outline-none
           ${error && touched
-            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20' 
+            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20'
             : 'border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20'
           }
           ${isFocused ? 'ring-4 ring-teal-500/20' : ''}
@@ -38,11 +38,11 @@ const InputField = memo(({
         `}
         placeholder={placeholder}
       />
-      
+
       <div className="h-6 mt-1">
         <AnimatePresence>
           {error && touched && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
@@ -58,9 +58,9 @@ const InputField = memo(({
   </div>
 ));
 
-const DateInput = memo(({ 
-  label, 
-  value = '', 
+const DateInput = memo(({
+  label,
+  value = '',
   onChange,
   error,
   touched,
@@ -84,7 +84,7 @@ const DateInput = memo(({
           w-full px-4 py-3 pl-12 rounded-xl border-2
           transition-all duration-300 focus:outline-none
           ${error && touched
-            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20' 
+            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20'
             : 'border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20'
           }
           ${isFocused ? 'ring-4 ring-teal-500/20' : ''}
@@ -92,15 +92,15 @@ const DateInput = memo(({
         `}
       />
       <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 
-        text-gray-400 group-hover:text-teal-500 transition-colors duration-300" 
+        text-gray-400 group-hover:text-teal-500 transition-colors duration-300"
       />
     </div>
   </div>
 ));
 
-const AllergyCard = memo(({ 
-  allergy, 
-  index, 
+const AllergyCard = memo(({
+  allergy,
+  index,
   onRemove,
   onChange,
   onFocus,
@@ -162,7 +162,7 @@ const AllergyCard = memo(({
             onClick={() => onChange(index, 'severity', level)}
             className={`
               px-4 py-2 rounded-xl border-2 transition-all duration-300
-              ${allergy.severity === level 
+              ${allergy.severity === level
                 ? 'border-teal-500 bg-teal-50 text-teal-600'
                 : 'border-gray-200 hover:border-gray-300'
               }
@@ -173,7 +173,7 @@ const AllergyCard = memo(({
         ))}
       </div>
       {errors[`allergy${index}_severity`] && touched[`allergy${index}_severity`] && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-2 mt-2 text-red-500 text-sm"
@@ -218,7 +218,7 @@ const AllergyCard = memo(({
         ))}
       </div>
       {errors[`allergy${index}_reactions`] && touched[`allergy${index}_reactions`] && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-2 mt-2 text-red-500 text-sm"
@@ -231,10 +231,10 @@ const AllergyCard = memo(({
   </motion.div>
 ));
 
-const AllergiesStep = ({ 
-  data = { allergies: [] }, 
-  onChange, 
-  onValidationChange 
+const AllergiesStep = ({
+  data = { allergies: [] },
+  onChange,
+  onValidationChange
 }) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -242,7 +242,7 @@ const AllergiesStep = ({
 
   const SEVERITY_LEVELS = ['Mild', 'Moderate', 'Severe', 'Life-Threatening'];
   const COMMON_REACTIONS = [
-    'Rash', 'Hives', 'Swelling', 'Difficulty Breathing', 
+    'Rash', 'Hives', 'Swelling', 'Difficulty Breathing',
     'Nausea', 'Anaphylaxis', 'Itching', 'Dizziness'
   ];
 
@@ -252,11 +252,11 @@ const AllergiesStep = ({
     if (!allergy.allergen?.trim()) {
       newErrors[`allergy${index}_allergen`] = 'Allergen name is required';
     }
-    
+
     if (!allergy.severity) {
       newErrors[`allergy${index}_severity`] = 'Severity level is required';
     }
-    
+
     if (!allergy.reactions?.length) {
       newErrors[`allergy${index}_reactions`] = 'Select at least one reaction';
     }
@@ -272,7 +272,7 @@ const AllergiesStep = ({
       diagnosedDate: '',
       reactions: []
     });
-    
+
     const updatedData = { ...data, allergies };
     onChange(updatedData);
     validateAllergies(allergies);
@@ -288,41 +288,41 @@ const AllergiesStep = ({
   const handleAllergyChange = (index, field, value) => {
     const allergies = [...(data.allergies || [])];
     if (!allergies[index]) {
-      allergies[index] = { 
-        allergen: '', 
-        severity: '', 
-        diagnosedDate: '', 
-        reactions: [] 
+      allergies[index] = {
+        allergen: '',
+        severity: '',
+        diagnosedDate: '',
+        reactions: []
       };
     }
-    
-    allergies[index] = { 
-      ...allergies[index], 
-      [field]: value 
+
+    allergies[index] = {
+      ...allergies[index],
+      [field]: value
     };
-    
+
     const updatedData = { ...data, allergies };
     onChange(updatedData);
-    
+
     setTouched(prev => ({
       ...prev,
       [`allergy${index}_${field}`]: true
     }));
-    
+
     validateAllergies(allergies);
   };
 
   const handleReactionToggle = (index, reaction) => {
     const allergies = [...(data.allergies || [])];
     if (!allergies[index]) {
-      allergies[index] = { 
-        allergen: '', 
-        severity: '', 
-        diagnosedDate: '', 
-        reactions: [] 
+      allergies[index] = {
+        allergen: '',
+        severity: '',
+        diagnosedDate: '',
+        reactions: []
       };
     }
-    
+
     const currentReactions = allergies[index].reactions || [];
     allergies[index] = {
       ...allergies[index],
@@ -330,21 +330,21 @@ const AllergiesStep = ({
         ? currentReactions.filter(r => r !== reaction)
         : [...currentReactions, reaction]
     };
-    
+
     const updatedData = { ...data, allergies };
     onChange(updatedData);
-    
+
     setTouched(prev => ({
       ...prev,
       [`allergy${index}_reactions`]: true
     }));
-    
+
     validateAllergies(allergies);
   };
 
   const validateAllergies = (allergies = []) => {
     let newErrors = {};
-    
+
     allergies.forEach((allergy, index) => {
       newErrors = {
         ...newErrors,
@@ -373,7 +373,7 @@ const AllergiesStep = ({
   }, []);
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -428,7 +428,6 @@ const AllergiesStep = ({
         </motion.div>
       )}
 
-      {/* Mobile responsiveness styles */}
       <style jsx global>{`
         @media (max-width: 640px) {
           input[type="date"] {

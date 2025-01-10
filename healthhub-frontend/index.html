@@ -1,37 +1,42 @@
 <!doctype html>
 <html lang="en" class="light">
-  <head>
-    <script>
-      // Immediately set correct theme to avoid flash
-      if (localStorage.getItem('darkMode') === 'dark' ||
-          (!localStorage.getItem('darkMode') && 
-           window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      }
-    </script>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>  
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script> 
-    <script src="https://cdn.tailwindcss.com"></script>
-<style>
-  body {
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    width: 100%;
-  }
-  #root {
-    min-height: 100vh;
-    width: 100%;
-  }
-</style>
+
+<head>
+  <script>
+    if (localStorage.getItem('darkMode') === 'dark' ||
+      (!localStorage.getItem('darkMode') &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeathHub</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      width: 100%;
+      background-color: black;
+    }
+
+    #root {
+      min-height: 100vh;
+      width: 100%;
+      background-color: black;
+    }
+  </style>
 
 </html>

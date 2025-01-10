@@ -72,8 +72,8 @@ const TransitionOverlay = ({ isVisible }) => {
                     transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                   />
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   className="absolute inset-0 flex items-center justify-center"
                   animate={pulseAnimation}
                 >
@@ -81,7 +81,7 @@ const TransitionOverlay = ({ isVisible }) => {
                 </motion.div>
               </div>
 
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
@@ -104,21 +104,27 @@ const TransitionOverlay = ({ isVisible }) => {
 
 const ForgotPasswordFlow = () => {
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    console.log('Current state:', { email, otp });
+  }, [email, otp]);
+
   const handleTransition = async (callback) => {
     setShowTransition(true);
     setIsLoading(true);
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
       await callback();
       await new Promise(resolve => setTimeout(resolve, 800));
     } catch (error) {
       console.error('Error during transition:', error);
+      throw error;
     } finally {
       setShowTransition(false);
       setIsLoading(false);
@@ -128,24 +134,23 @@ const ForgotPasswordFlow = () => {
   const handleEmailSubmit = async (email) => {
     await handleTransition(async () => {
       try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+        const response = await fetch('https://anochat.in/v1/auth/forgot-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email,
-            type: 'forgot_password_email',
-            timestamp: new Date().toISOString()
+            email: email.trim().toLowerCase()
           })
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to send email');
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.data?.message || 'Failed to send email');
         }
 
-        await response.json();
-        setEmail(email);
+        setEmail(email.trim().toLowerCase());
         navigate('/forgot-password/verify');
       } catch (error) {
         throw new Error('Failed to process email submission');
@@ -153,27 +158,27 @@ const ForgotPasswordFlow = () => {
     });
   };
 
-  const handleOTPSubmit = async (otp) => {
+  const handleOTPSubmit = async (otpValue) => {
     await handleTransition(async () => {
       try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+        const response = await fetch('https://anochat.in/v1/auth/verify-otp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             email,
-            otp,
-            type: 'verify_otp',
-            timestamp: new Date().toISOString()
+            otp: otpValue
           })
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to verify OTP');
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.data?.message || 'Failed to verify OTP');
         }
 
-        await response.json();
+        setOtp(otpValue);
         navigate('/forgot-password/reset');
       } catch (error) {
         throw new Error('Failed to verify OTP');
@@ -184,36 +189,72 @@ const ForgotPasswordFlow = () => {
   const handlePasswordReset = async (newPassword) => {
     await handleTransition(async () => {
       try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+        const response = await fetch('https://anochat.in/v1/auth/reset-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email,
-            newPassword,
-            type: 'reset_password',
-            timestamp: new Date().toISOString()
+            email: email.trim(),
+            otp: otp.trim(),
+            new_password: newPassword
           })
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to reset password');
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          if (data.data?.message === 'invalid OTP') {
+            setOtp('');
+            navigate('/forgot-password/verify');
+            throw new Error('OTP has expired. Please request a new OTP.');
+          }
+          throw new Error(data.data?.message || 'Failed to reset password');
         }
 
-        await response.json();
+        setEmail('');
+        setOtp('');
         navigate('/auth');
       } catch (error) {
-        throw new Error('Failed to reset password');
+        console.error('Password reset error:', error);
+        throw error;
       }
     });
   };
 
+  const handleResendOTP = async () => {
+    try {
+      const response = await fetch('https://anochat.in/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim()
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.data?.message || 'Failed to send OTP');
+      }
+
+      setTimer(30);
+      setCanResend(false);
+
+      setOtp(['', '', '', '', '', '']);
+      setFocusedInput(0);
+      setError('');
+    } catch (error) {
+      setError('Failed to send new OTP. Please try again.');
+    }
+  };
   return (
     <>
       <TransitionOverlay isVisible={showTransition} />
-      
-      <motion.div 
+
+      <motion.div
         key={location.pathname}
         className="bg-white rounded-3xl shadow-xl overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
@@ -223,24 +264,26 @@ const ForgotPasswordFlow = () => {
       >
         <Routes>
           <Route index element={
-            <EmailStep 
+            <EmailStep
               onSubmit={handleEmailSubmit}
               onBack={() => navigate('/auth')}
               isLoading={isLoading}
             />
           } />
-          
+
           <Route path="verify" element={
             <OTPStep
               email={email}
               onSubmit={handleOTPSubmit}
-              onResendOTP={() => console.log('Resend OTP')}
+              onResendOTP={handleEmailSubmit}
               isLoading={isLoading}
             />
           } />
-          
+
           <Route path="reset" element={
             <NewPasswordStep
+              email={email}
+              otp={otp}
               onSubmit={handlePasswordReset}
               isLoading={isLoading}
             />

@@ -2,12 +2,12 @@ import React, { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Phone, Mail, UserPlus, AlertCircle, X, Heart, UserCheck } from 'lucide-react';
 
-const InputField = memo(({ 
-  icon: Icon, 
-  label, 
-  name, 
-  type = "text", 
-  value = '', 
+const InputField = memo(({
+  icon: Icon,
+  label,
+  name,
+  type = "text",
+  value = '',
   onChange,
   onFocus,
   onBlur,
@@ -17,7 +17,7 @@ const InputField = memo(({
   placeholder,
   required = false,
   contactIndex,
-  ...props 
+  ...props
 }) => (
   <div className="group min-h-[90px]">
     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -34,7 +34,7 @@ const InputField = memo(({
           w-full px-4 py-3 pl-12 rounded-xl border-2
           transition-colors duration-300 focus:outline-none
           ${error && touched
-            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20' 
+            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20'
             : 'border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20'
           }
           ${isFocused ? 'ring-4 ring-teal-500/20' : ''}
@@ -46,18 +46,18 @@ const InputField = memo(({
       <Icon className={`
         absolute left-4 top-1/3 transform -translate-y-1/2
         transition-colors duration-300
-        ${error && touched 
-          ? 'text-red-400' 
-          : isFocused 
-            ? 'text-teal-500' 
+        ${error && touched
+          ? 'text-red-400'
+          : isFocused
+            ? 'text-teal-500'
             : 'text-gray-400 group-hover:text-teal-500'
         }
       `} />
-      
+
       <div className="h-6 mt-1">
         <AnimatePresence>
           {error && touched && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
@@ -73,10 +73,10 @@ const InputField = memo(({
   </div>
 ));
 
-const EmergencyContactCard = memo(({ 
-  contact, 
-  index, 
-  onRemove, 
+const EmergencyContactCard = memo(({
+  contact,
+  index,
+  onRemove,
   onChange,
   onFocus,
   onBlur,
@@ -190,10 +190,10 @@ const EmergencyContactCard = memo(({
   </motion.div>
 ));
 
-const EmergencyContactStep = ({ 
-  data = { emergencyContacts: [] }, 
-  onChange = () => {}, 
-  onValidationChange = () => {} 
+const EmergencyContactStep = ({
+  data = { emergencyContacts: [] },
+  onChange = () => { },
+  onValidationChange = () => { }
 }) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -214,9 +214,9 @@ const EmergencyContactStep = ({
   }, []);
 
   const isPrimaryContactValid = (contact) => {
-    return contact?.name?.trim() && 
-           contact?.relationship?.trim() && 
-           contact?.phone?.trim();
+    return contact?.name?.trim() &&
+      contact?.relationship?.trim() &&
+      contact?.phone?.trim();
   };
 
   const handleChange = (contactIndex, field, value) => {
@@ -225,7 +225,7 @@ const EmergencyContactStep = ({
       newContacts[contactIndex] = { name: '', relationship: '', phone: '', email: '' };
     }
     newContacts[contactIndex] = { ...newContacts[contactIndex], [field]: value };
-    
+
     onChange({ ...data, emergencyContacts: newContacts });
 
     const isPrimaryValid = isPrimaryContactValid(newContacts[0]);
@@ -249,7 +249,7 @@ const EmergencyContactStep = ({
   };
 
   const handleRemoveContact = (index) => {
-    if (index === 0) return; 
+    if (index === 0) return;
     const newContacts = [...(data.emergencyContacts || [])].filter((_, i) => i !== index);
     onChange({ ...data, emergencyContacts: newContacts });
   };

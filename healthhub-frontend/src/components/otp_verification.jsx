@@ -10,15 +10,15 @@ const PulseCircle = ({ delay = 0, top, left, size = "lg" }) => {
   };
 
   return (
-    <div 
-      className="absolute" 
+    <div
+      className="absolute"
       style={{ top, left }}
     >
-      <div 
+      <div
         className={`absolute ${sizes[size]} rounded-full bg-white/10 animate-pulse-ring`}
         style={{ animationDelay: `${delay}ms` }}
       />
-      <div 
+      <div
         className={`absolute ${sizes[size]} rounded-full bg-white/20 animate-pulse-ring-delay`}
         style={{ animationDelay: `${delay + 400}ms` }}
       />
@@ -27,10 +27,10 @@ const PulseCircle = ({ delay = 0, top, left, size = "lg" }) => {
 };
 
 const FloatingSparkle = ({ delay = 0, top, left }) => (
-  <div 
+  <div
     className="absolute animate-float"
-    style={{ 
-      top, 
+    style={{
+      top,
       left,
       animationDelay: `${delay}ms`,
     }}
@@ -86,12 +86,12 @@ const NumberInput = ({ value, onChange, onKeyDown, onFocus, onBlur, inputRef, is
         className={`
           relative w-14 h-16 sm:w-16 sm:h-20 text-center text-2xl sm:text-3xl font-bold 
           border-2 rounded-xl outline-none transition-all duration-300
-          ${isActive 
-            ? 'border-teal-500 bg-teal-50/50 ring-4 ring-teal-500/20 scale-110 z-10' 
+          ${isActive
+            ? 'border-teal-500 bg-teal-50/50 ring-4 ring-teal-500/20 scale-110 z-10'
             : 'border-gray-200 hover:border-teal-300'
           }
-          ${isFilled 
-            ? 'bg-gradient-to-br from-teal-50 to-blue-50 text-teal-600' 
+          ${isFilled
+            ? 'bg-gradient-to-br from-teal-50 to-blue-50 text-teal-600'
             : 'bg-white text-gray-700'
           }
           ${isAnimating ? 'animate-bounce-soft' : ''}
@@ -108,8 +108,8 @@ const NumberInput = ({ value, onChange, onKeyDown, onFocus, onBlur, inputRef, is
       `} />
 
       {isFilled && isAnimating && (
-        <Sparkles 
-          className="absolute top-0 right-0 text-teal-500 transform -translate-y-1/2 translate-x-1/2 animate-ping" 
+        <Sparkles
+          className="absolute top-0 right-0 text-teal-500 transform -translate-y-1/2 translate-x-1/2 animate-ping"
         />
       )}
     </div>
@@ -146,7 +146,7 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
     if (value.length > 1) return;
     if (!/^\d*$/.test(value)) return;
 
-    setError(''); 
+    setError('');
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -162,28 +162,9 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
     }
   };
 
-  const handleVerification = async () => {
-    try {
-      setIsVerifying(true);
-      setError('');
-      
-      const otpCode = otp.join('');
-      await verifyOTP(otpCode);
-      
-      setVerificationComplete(true);
-      setSuccessMessage('Verification successful!');
-      
-      setTimeout(() => {
-        onVerificationComplete?.();
-      }, 1000);
-    } catch (error) {
-      setError(error.message);
-      setIsVerifying(false);
-    }
-  };
   const verifyOTP = async (otpCode) => {
     try {
-      const response = await fetch('https://anochat.in/auth/verify-otp', {
+      const response = await fetch('https://anochat.in/v1/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,52 +174,70 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
           otp: otpCode,
         })
       });
-  
-      if (!response.ok) {
-        throw new Error('Invalid verification code');
-      }
-  
+
       const data = await response.json();
-      if (response.json()) {
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Invalid verification code');
+      }
+
+      if (data.success && data.data) {
+        if (data.data.tokens) {
+          const { access_token, refresh_token } = data.data.tokens;
+          localStorage.setItem('access_token', access_token);
+          localStorage.setItem('refresh_token', refresh_token);
+        }
+
+        if (data.data.user) {
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+        }
+
         return true;
       }
+
       throw new Error('Verification failed');
     } catch (error) {
-      throw new Error('Failed to verify code. Please try again.');
+      console.error('OTP Verification error:', error);
+      throw new Error(error.message || 'Failed to verify code. Please try again.');
     }
   };
-  const resendOTP = async () => {
+
+  const handleVerification = async () => {
     try {
-      const response = await fetch('https://anochat.in/v1/auth/resend-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-        })
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to send new code');
+      setIsVerifying(true);
+      setError('');
+
+      const otpCode = otp.join('');
+      const result = await verifyOTP(otpCode);
+
+      if (result) {
+        setVerificationComplete(true);
+        setSuccessMessage('Verification successful!');
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        localStorage.setItem('isAuthenticated', 'true');
+
+        onVerificationComplete?.();
       }
-  
-      await response.json();
-      return true;
     } catch (error) {
-      throw new Error('Failed to send new code. Please try again.');
+      setError(error.message);
+      localStorage.removeItem('isAuthenticated');
+    } finally {
+      setIsVerifying(false);
     }
   };
+
   const handleResendOTP = async () => {
     try {
       setCanResend(false);
       await resendOTP();
-      
+
       setTimer(30);
       setOtp(['', '', '', '', '', '']);
       setActiveInput(0);
       setSuccessMessage('New code sent successfully!');
-      
+
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       setError(error.message);
@@ -266,11 +265,11 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
           <HeartbeatLine top="20%" />
           <HeartbeatLine top="60%" />
           <HeartbeatLine top="40%" />
-          
+
           <PulseCircle delay={0} top="10%" left="10%" size="xl" />
           <PulseCircle delay={500} top="70%" left="80%" size="lg" />
           <PulseCircle delay={1000} top="40%" left="60%" size="md" />
-          
+
           <FloatingSparkle delay={0} top="20%" left="20%" />
           <FloatingSparkle delay={1000} top="60%" left="70%" />
           <FloatingSparkle delay={2000} top="30%" left="90%" />
@@ -304,8 +303,8 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
                   >
                     <div className="p-3 bg-white/10 rounded-xl group-hover:bg-white/20 transition-colors">
                       {i === 0 ? <Shield className="h-6 w-6 text-white" /> :
-                       i === 1 ? <LockKeyhole className="h-6 w-6 text-white" /> :
-                       <Fingerprint className="h-6 w-6 text-white" />}
+                        i === 1 ? <LockKeyhole className="h-6 w-6 text-white" /> :
+                          <Fingerprint className="h-6 w-6 text-white" />}
                     </div>
                     <span className="text-lg text-white font-medium">{text}</span>
                   </div>
@@ -374,7 +373,7 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
                           aria-label={`Digit ${index + 1} of verification code`}
                           role="textbox"
                           inputMode="numeric"
-                          autoComplete="one-time-code"                        
+                          autoComplete="one-time-code"
                           inputRef={el => inputRefs.current[index] = el}
                           isActive={activeInput === index}
                           index={index}

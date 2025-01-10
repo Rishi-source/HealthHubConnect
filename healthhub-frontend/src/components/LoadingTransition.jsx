@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Sparkles, Heart, Shield, Activity, CheckCircle2,
-  User, Settings, Database, Zap, Star, 
+  User, Settings, Database, Zap, Star,
   Flame, Cloud, Waves
 } from 'lucide-react';
 
@@ -57,7 +57,7 @@ const CircularProgress = ({ progress }) => (
 const Particle = ({ index }) => {
   const randomDelay = Math.random() * 2;
   const size = Math.random() * 4 + 2;
-  
+
   return (
     <motion.div
       className="absolute w-1 h-1 bg-white rounded-full"
@@ -123,7 +123,7 @@ const LoadingTransition = ({ onComplete }) => {
         {[...Array(50)].map((_, i) => (
           <Particle key={i} index={i} />
         ))}
-        
+
         {[...Array(3)].map((_, i) => (
           <motion.div
             key={`circle-${i}`}
@@ -159,7 +159,7 @@ const LoadingTransition = ({ onComplete }) => {
           >
             <CircularProgress progress={progress} />
           </motion.div>
-          
+
           <FloatingElement>
             <motion.div
               className="relative"
@@ -187,7 +187,7 @@ const LoadingTransition = ({ onComplete }) => {
                   ${index === currentStep ? 'text-white' : 'text-white/40'}
                 `}
                 initial={{ opacity: 0, x: -50 }}
-                animate={{ 
+                animate={{
                   opacity: index <= currentStep ? 1 : 0.4,
                   x: 0,
                   transition: { delay: index * 0.2 }
@@ -208,7 +208,7 @@ const LoadingTransition = ({ onComplete }) => {
                       <step.icon className={`w-7 h-7 ${step.color}`} />
                     </FloatingElement>
                   )}
-                  
+
                   {index === currentStep && (
                     <motion.div
                       className="absolute -inset-4 bg-white/10 rounded-lg -z-10"
@@ -222,7 +222,7 @@ const LoadingTransition = ({ onComplete }) => {
                 </div>
 
                 <span className="text-lg font-medium">{step.text}</span>
-                
+
                 {index === currentStep && (
                   <div className="flex space-x-1">
                     {[...Array(3)].map((_, i) => (

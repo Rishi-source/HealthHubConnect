@@ -1,16 +1,16 @@
 import React, { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Pill, Plus, X, Calendar, AlertCircle, Clock, User, 
+import {
+  Pill, Plus, X, Calendar, AlertCircle, Clock, User,
   RefreshCcw, ThumbsUp
 } from 'lucide-react';
 
-const InputField = memo(({ 
-  icon: Icon, 
-  label, 
-  value = '', 
-  onChange, 
-  error, 
+const InputField = memo(({
+  icon: Icon,
+  label,
+  value = '',
+  onChange,
+  error,
   required = false,
   placeholder,
   touched,
@@ -34,7 +34,7 @@ const InputField = memo(({
           rounded-xl border-2
           transition-all duration-300 focus:outline-none
           ${error && touched
-            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20' 
+            ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/20'
             : 'border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20'
           }
           ${isFocused ? 'ring-4 ring-teal-500/20' : ''}
@@ -46,15 +46,15 @@ const InputField = memo(({
         <Icon className={`
           absolute left-4 top-1/2 transform -translate-y-1/2
           transition-colors duration-300
-          ${error && touched 
-            ? 'text-red-400' 
+          ${error && touched
+            ? 'text-red-400'
             : 'text-gray-400 group-hover:text-teal-500'
           }
         `} />
       )}
-      
+
       {error && touched && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-2 mt-2 text-red-500 text-sm"
@@ -67,9 +67,9 @@ const InputField = memo(({
   </div>
 ));
 
-const DateInput = memo(({ 
-  label, 
-  value = '', 
+const DateInput = memo(({
+  label,
+  value = '',
   onChange,
   min,
   max,
@@ -105,11 +105,11 @@ const DateInput = memo(({
         `}
       />
       <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 
-        text-gray-400 group-hover:text-teal-500 transition-colors duration-300" 
+        text-gray-400 group-hover:text-teal-500 transition-colors duration-300"
       />
-      
+
       {error && touched && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-2 mt-2 text-red-500 text-sm"
@@ -122,10 +122,10 @@ const DateInput = memo(({
   </div>
 ));
 
-const SelectionGroup = memo(({ 
-  label, 
-  options, 
-  selected = '', 
+const SelectionGroup = memo(({
+  label,
+  options,
+  selected = '',
   onChange,
   error,
   required = false,
@@ -145,7 +145,7 @@ const SelectionGroup = memo(({
           onClick={() => onChange(option)}
           className={`
             px-4 py-2 rounded-xl border-2 transition-all duration-300
-            ${selected === option 
+            ${selected === option
               ? 'border-teal-500 bg-teal-50 text-teal-600'
               : 'border-gray-200 hover:border-gray-300'
             }
@@ -155,9 +155,9 @@ const SelectionGroup = memo(({
         </motion.button>
       ))}
     </div>
-    
+
     {error && touched && (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center gap-2 mt-2 text-red-500 text-sm"
@@ -169,9 +169,9 @@ const SelectionGroup = memo(({
   </div>
 ));
 
-const MedicationCard = memo(({ 
-  medication, 
-  index, 
+const MedicationCard = memo(({
+  medication,
+  index,
   type = 'current',
   onRemove,
   onChange,
@@ -342,10 +342,10 @@ const MedicationCard = memo(({
   </motion.div>
 ));
 
-const MedicationsStep = memo(({ 
-  data = { medications: { current: [], past: [] } }, 
-  onChange, 
-  onValidationChange 
+const MedicationsStep = memo(({
+  data = { medications: { current: [], past: [] } },
+  onChange,
+  onValidationChange
 }) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -353,7 +353,7 @@ const MedicationsStep = memo(({
   const [focusedField, setFocusedField] = useState(null);
 
   const FREQUENCIES = [
-    'Once daily', 'Twice daily', 'Three times daily', 
+    'Once daily', 'Twice daily', 'Three times daily',
     'Every 12 hours', 'Every 8 hours', 'As needed'
   ];
 
@@ -375,7 +375,7 @@ const MedicationsStep = memo(({
 
   const validateMedication = (med, index, type) => {
     const newErrors = {};
-    
+
     if (!med.name?.trim()) {
       newErrors[`${type}${index}_name`] = 'Medication name is required';
     }
@@ -405,12 +405,12 @@ const MedicationsStep = memo(({
 
   const validateAllMedications = (medications = {}) => {
     let allErrors = {};
-    
+
     medications.current?.forEach((med, index) => {
       const errors = validateMedication(med, index, 'med');
       allErrors = { ...allErrors, ...errors };
     });
-    
+
     medications.past?.forEach((med, index) => {
       const errors = validateMedication(med, index, 'pastMed');
       allErrors = { ...allErrors, ...errors };
@@ -452,18 +452,18 @@ const MedicationsStep = memo(({
       medications[type][index] = getDefaultMedication(type);
     }
 
-    medications[type][index] = { 
-      ...medications[type][index], 
-      [field]: value 
+    medications[type][index] = {
+      ...medications[type][index],
+      [field]: value
     };
-    
+
     onChange({ ...data, medications });
-    
+
     setTouched(prev => ({
       ...prev,
       [`${type === 'past' ? 'pastMed' : 'med'}${index}_${field}`]: true
     }));
-    
+
     validateAllMedications(medications);
   };
 
@@ -480,7 +480,7 @@ const MedicationsStep = memo(({
         ? currentEffects.filter(e => e !== effect)
         : [...currentEffects, effect]
     };
-    
+
     onChange({ ...data, medications });
   };
 
@@ -501,7 +501,7 @@ const MedicationsStep = memo(({
   }, []);
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -545,10 +545,10 @@ const MedicationsStep = memo(({
             ) : (
               <div className="space-y-4">
                 {data.medications.past.map((medication, index) => (
-                  <MedicationCard 
-                    key={`past_${index}`} 
-                    medication={medication} 
-                    index={index} 
+                  <MedicationCard
+                    key={`past_${index}`}
+                    medication={medication}
+                    index={index}
                     type="past"
                     onRemove={handleRemoveMedication}
                     onChange={handleMedicationChange}
@@ -561,8 +561,8 @@ const MedicationsStep = memo(({
                     COMMON_SIDE_EFFECTS={COMMON_SIDE_EFFECTS}
                   />
                 ))}
-                
-                <motion.button 
+
+                <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleAddMedication('past')}
@@ -600,10 +600,10 @@ const MedicationsStep = memo(({
             ) : (
               <div className="space-y-4">
                 {data.medications.current.map((medication, index) => (
-                  <MedicationCard 
-                    key={`current_${index}`} 
-                    medication={medication} 
-                    index={index} 
+                  <MedicationCard
+                    key={`current_${index}`}
+                    medication={medication}
+                    index={index}
                     type="current"
                     onRemove={handleRemoveMedication}
                     onChange={handleMedicationChange}
@@ -617,8 +617,8 @@ const MedicationsStep = memo(({
                     handleSideEffectToggle={handleSideEffectToggle}
                   />
                 ))}
-                
-                <motion.button 
+
+                <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleAddMedication('current')}
