@@ -486,3 +486,43 @@
 {"level":"info","time":"2025-01-09T17:43:08+05:30","message":"Successfully initialized application"}
 {"level":"info","time":"2025-01-09T17:51:37+05:30","message":"Shutting down application"}
 {"level":"info","time":"2025-01-09T17:51:37+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T09:57:06+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T09:57:06+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T09:57:06+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:02:52+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:02:52+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:02:53+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:02:53+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:02:53+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:04:25+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:04:25+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:04:27+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:04:27+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:04:27+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:10:24+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:10:24+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:10:25+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:10:25+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:10:25+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:14:40+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:14:40+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:14:42+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:14:42+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:14:42+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:15:58+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:15:58+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:15:59+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:15:59+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:15:59+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:19:09+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:19:09+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:19:10+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:19:10+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:19:10+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:21:17+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:21:17+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T10:21:19+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T10:21:19+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T10:21:19+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T10:22:31+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T10:22:31+05:30","message":"Successfully cleaned up application resources"}

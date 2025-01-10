@@ -53,7 +53,12 @@ func (ur *UserRepository) FindByResetToken(ctx context.Context, token string) (*
 
 func (ur *UserRepository) FindByID(ctx context.Context, id uint) (*models.User, error) {
 	var user models.User
-	err := ur.db.WithContext(ctx).First(&user, id).Error
+	err := ur.db.WithContext(ctx).
+		Preload("HealthProfile").
+		Preload("HealthProfile.Allergy").
+		Preload("HealthProfile.Medication").
+		Preload("HealthProfile.VitalSign").
+		First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}

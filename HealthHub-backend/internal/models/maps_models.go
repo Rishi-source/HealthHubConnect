@@ -12,18 +12,18 @@ type Speciality struct {
 
 type Hospital struct {
 	Base
-	Name          string       `json:"name"`
-	Address       string       `json:"address"`
+	Name          string       `json:"name" gorm:"size:200;not null"`
+	Address       string       `json:"address" gorm:"size:500;not null"`
 	Location      Location     `json:"location" gorm:"embedded"`
-	PhoneNumber   string       `json:"phone_number"`
+	PhoneNumber   string       `json:"phone_number" gorm:"size:20"`
 	Rating        float32      `json:"rating"`
-	Services      []string     `json:"services"`
-	IsOpen        bool         `json:"is_open"`
+	Services      string       `json:"services" gorm:"type:text"`
+	IsOpen        bool         `json:"is_open" gorm:"default:false"`
 	Distance      float64      `gorm:"-" json:"distance"`
-	HasEmergency  bool         `json:"has_emergency"`
+	HasEmergency  bool         `json:"has_emergency" gorm:"default:false"`
 	Specialities  []Speciality `json:"specialities" gorm:"many2many:hospital_specialities;"`
-	GooglePlaceID string       `json:"google_place_id"`
-	OpeningHours  []string     `json:"opening_hours"`
+	GooglePlaceID string       `json:"google_place_id" gorm:"size:100"`
+	OpeningHours  string       `json:"opening_hours" gorm:"type:text"`
 }
 
 type UserLocation struct {
