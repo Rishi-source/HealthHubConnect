@@ -565,3 +565,21 @@
 {"level":"info","time":"2025-01-10T13:55:28+05:30","message":"Successfully initialized WebSocket manager"}
 {"level":"info","time":"2025-01-10T13:55:28+05:30","message":"Successfully initialized Google Maps client"}
 {"level":"info","time":"2025-01-10T13:55:28+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T15:02:45+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T15:02:45+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T15:02:45+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T15:10:44+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T15:10:44+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T15:10:48+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T15:10:48+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T15:10:48+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T15:56:11+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T15:56:11+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T15:56:11+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T15:59:33+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T15:59:33+05:30","message":"Successfully cleaned up application resources"}
+{"level":"info","time":"2025-01-10T15:59:35+05:30","message":"Successfully initialized WebSocket manager"}
+{"level":"info","time":"2025-01-10T15:59:35+05:30","message":"Successfully initialized Google Maps client"}
+{"level":"info","time":"2025-01-10T15:59:35+05:30","message":"Successfully initialized application"}
+{"level":"info","time":"2025-01-10T16:01:25+05:30","message":"Shutting down application"}
+{"level":"info","time":"2025-01-10T16:01:25+05:30","message":"Successfully cleaned up application resources"}

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HealthHub Login</title>
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="index.js"></script>
+    <style>
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+        .login-button {
+            margin: 20px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HealthHub Login</h1>
+        <div id="g_id_onload"
+             data-client_id="232880583599-2ub31l5n5iuho98avcqr0bbhtu5gesb6.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="redirect"
+             data-login_uri="https://anochat.in/v1/auth/google/callback"
+             data-auto_prompt="false">
+        </div>
+
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="signin_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+
+        <button onclick="handleGoogleLogin()" class="login-button">
+            Custom Google Login
+        </button>
+    </div>
+</body>
+</body>
+</html>
+</html>
