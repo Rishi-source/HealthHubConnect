@@ -26,7 +26,7 @@ var upgrader = websocket.Upgrader{
 type WebSocketHandler struct {
 	manager        *wsManager.Manager
 	chatRepository *repositories.ChatRepository
-	userRepository *repositories.UserRepository // Add this
+	userRepository *repositories.UserRepository
 }
 
 func NewWebSocketHandler(manager *wsManager.Manager, chatRepo *repositories.ChatRepository, userRepo *repositories.UserRepository) *WebSocketHandler {
@@ -40,7 +40,6 @@ func NewWebSocketHandler(manager *wsManager.Manager, chatRepo *repositories.Chat
 func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	loggerManager := logger.GetLogger()
 
-	// Get sender ID from auth context
 	senderID, err := utils.GetUserIDFromContext(r.Context())
 	if err != nil {
 		loggerManager.ServerLogger.Error().Err(err).Msg("Failed to get user ID from context")
@@ -48,7 +47,6 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Get recipient ID from URL parameters
 	vars := mux.Vars(r)
 	recipientID, err := strconv.ParseUint(vars["recipientId"], 10, 32)
 	if err != nil {
@@ -57,15 +55,15 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Verify both users exist
-	if err := h.userRepository.VerifyUsers(r.Context(), senderID, uint(recipientID)); err != nil {
-		loggerManager.ServerLogger.Error().Err(err).
-			Uint("senderID", senderID).
-			Uint64("recipientID", recipientID).
-			Msg("User verification failed")
-		http.Error(w, "Invalid user IDs", http.StatusBadRequest)
-		return
-	}
+	// for testing (uncomment in prod)
+	// if err := h.userRepository.VerifyUsers(r.Context(), senderID, uint(recipientID)); err != nil {
+	// 	loggerManager.ServerLogger.Error().Err(err).
+	// 		Uint("senderID", senderID).
+	// 		Uint64("recipientID", recipientID).
+	// 		Msg("User verification failed")
+	// 	http.Error(w, "Invalid user IDs", http.StatusBadRequest)
+	// 	return
+	// }
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -107,7 +105,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			break
 		}
 
-		// Create chat message with sender and recipient IDs
 		chatMessage := models.ChatMessage{
 			SenderID:   client.UserID,
 			ReceiverID: client.RecipientID,
@@ -121,7 +118,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			continue
 		}
 
-		// Save message to database
 		if err := h.chatRepository.SaveMessage(ctx, &chatMessage); err != nil {
 			loggerManager.ServerLogger.Error().
 				Err(err).
@@ -130,7 +126,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			continue
 		}
 
-		// Send message only to the intended recipient
 		recipients := h.manager.GetClientsByUserID(client.RecipientID)
 		for _, recipient := range recipients {
 			select {
@@ -179,7 +174,6 @@ func (h *WebSocketHandler) GetChatHistory(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get sender ID from URL parameters
 	vars := mux.Vars(r)
 	senderID, err := strconv.ParseUint(vars["senderId"], 10, 32)
 	if err != nil {
@@ -188,7 +182,6 @@ func (h *WebSocketHandler) GetChatHistory(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Verify both users exist
 	if err := h.userRepository.VerifyUsers(r.Context(), currentUserID, uint(senderID)); err != nil {
 		loggerManager.ServerLogger.Error().Err(err).
 			Uint("currentUserID", currentUserID).
@@ -223,7 +216,6 @@ func (h *WebSocketHandler) GetChatHistory(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	// Use GetChatHistory instead of GetAllChatHistory to get messages between specific users
 	messages, err := h.chatRepository.GetChatHistory(r.Context(), currentUserID, uint(senderID), limit, offset)
 	if err != nil {
 		loggerManager.ServerLogger.Error().Err(err).

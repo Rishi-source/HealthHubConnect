@@ -11,7 +11,7 @@ import (
 )
 
 func SetupRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client, wsManager *websocket.Manager) {
-	// Apply middlewares
+	//middlewares
 	router.Use(middleware.CorsMiddleware)
 	router.Use(middleware.LoggingMiddleware)
 

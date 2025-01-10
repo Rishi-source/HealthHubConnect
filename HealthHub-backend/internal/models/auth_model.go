@@ -11,9 +11,9 @@ type OAuthAccount struct {
 	Base
 	User       User      `json:"user" gorm:"foreignKey:UserID"`
 	UserID     uint      `json:"user_id"`
-	Provider   string    `json:"provider"` // e.g., "google", "github" or any other OAuth provider
+	Provider   string    `json:"provider"`
 	ProviderID string    `json:"provider_id" gorm:"uniqueIndex"`
-	Token      string    `json:"-"` // encrypted in DB
+	Token      string    `json:"-"`
 	TokenType  string    `json:"-"`
 	ExpiresAt  time.Time `json:"-"`
 }
@@ -25,7 +25,6 @@ type JWTClaims struct {
 	Scopes []string `json:"scopes"`
 }
 
-// OAuthToken extends the oauth2 token with additional metadata
 type OAuthToken struct {
 	oauth2.Token
 	DeviceID   string    `json:"device_id,omitempty"`
@@ -35,7 +34,7 @@ type OAuthToken struct {
 
 type OAuthConfig struct {
 	ClientID     string          `json:"client_id"`
-	ClientSecret string          `json:"-"` // encrypted in DB for security reasons
+	ClientSecret string          `json:"-"`
 	RedirectURL  string          `json:"redirect_url"`
 	Scopes       []string        `json:"scopes"`
 	Endpoint     oauth2.Endpoint `json:"-"`

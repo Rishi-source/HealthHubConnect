@@ -34,7 +34,7 @@ func NewUserService(userRepo *repositories.UserRepository) *UserService {
 	}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, name, email, password string, phone int64) (*models.User, error) {
+func (s *UserService) createUserCommon(ctx context.Context, name, email, password string, phone int64, role models.UserRole) (*models.User, error) {
 	existingUser, err := s.userRepo.FindByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		return nil, e.NewDuplicateResourceError(email)
@@ -48,65 +48,7 @@ func (s *UserService) CreateUser(ctx context.Context, name, email, password stri
 	if err := utils.ValidatePhone(phone); err != nil {
 		return nil, fmt.Errorf("invalid phone: %w", err)
 	}
-	hashedPassword, err := utils.HashPassword(password)
-	if err != nil {
-		log.Printf("Error hashing password: %v", err)
-		return nil, fmt.Errorf("internal server error")
-	}
 
-	user := &models.User{
-		Name:         name,
-		Email:        email,
-		PasswordHash: hashedPassword,
-		Phone:        phone,
-	}
-
-	resetOTP := utils.GenerateResetOTP()
-	user.ResetToken = resetOTP
-	user.ResetTokenExpiry = time.Now().Add(24 * time.Hour)
-
-	if err := s.userRepo.CreateUser(user, ctx); err != nil {
-		log.Printf("Error creating user: %v", err)
-		return nil, err
-	}
-
-	// Send verification email with OTP
-	subject := "Email Verification OTP - HealthHub"
-	body := fmt.Sprintf(`Dear %s,
-
-Welcome to HealthHub! Please verify your email using the following OTP:
-
-%s
-
-This OTP will expire in 24 Hours.
-
-For security reasons, DO NOT share this OTP with anyone.
-
-Best regards,
-HealthHub Team`, user.Name, resetOTP)
-
-	if err := utils.SendEmail(email, subject, body); err != nil {
-		log.Printf("Failed to send verification email: %v", err)
-	}
-
-	user.PasswordHash = ""
-	return user, nil
-}
-
-func (s *UserService) CreateUserWithRole(ctx context.Context, name, email, password string, phone int64, role models.UserRole) (*models.User, error) {
-	existingUser, err := s.userRepo.FindByEmail(ctx, email)
-	if err == nil && existingUser != nil {
-		return nil, e.NewDuplicateResourceError(email)
-	}
-	if err := utils.ValidateEmail(email); err != nil {
-		return nil, fmt.Errorf("invalid email: %w", err)
-	}
-	if err := utils.ValidatePassword(password); err != nil {
-		return nil, fmt.Errorf("invalid password: %w", err)
-	}
-	if err := utils.ValidatePhone(phone); err != nil {
-		return nil, fmt.Errorf("invalid phone: %w", err)
-	}
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		log.Printf("Error hashing password: %v", err)
@@ -130,7 +72,71 @@ func (s *UserService) CreateUserWithRole(ctx context.Context, name, email, passw
 		return nil, err
 	}
 
-	// Send verification email with OTP
+	s.sendVerificationEmail(user.Email, user.Name, resetOTP)
+
+	user.PasswordHash = ""
+	return user, nil
+}
+
+func (s *UserService) CreateUser(ctx context.Context, name, email, password string, phone int64) (*models.User, error) {
+	return s.createUserCommon(ctx, name, email, password, phone, models.RolePatient)
+}
+
+func (s *UserService) CreateUserWithRole(ctx context.Context, name, email, password string, phone int64, role models.UserRole) (*models.User, error) {
+	return s.createUserCommon(ctx, name, email, password, phone, role)
+}
+
+func (s *UserService) validateLogin(ctx context.Context, email, password string) (*models.User, error) {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, e.NewValidationError("invalid email or password")
+	}
+
+	if err := utils.ComparePassword(password, user.PasswordHash); err != nil {
+		return nil, e.NewValidationError("invalid email or password")
+	}
+
+	return user, nil
+}
+
+func (s *UserService) Login(ctx context.Context, email, password string) (*models.User, utils.TokenPair, error) {
+	user, err := s.validateLogin(ctx, email, password)
+	if err != nil {
+		return nil, utils.TokenPair{}, err
+	}
+
+	return s.finalizeLogin(ctx, user)
+}
+
+func (s *UserService) LoginWithRole(ctx context.Context, email, password string, role models.UserRole) (*models.User, utils.TokenPair, error) {
+	user, err := s.validateLogin(ctx, email, password)
+	if err != nil {
+		return nil, utils.TokenPair{}, err
+	}
+
+	if user.Role != role {
+		return nil, utils.TokenPair{}, e.NewValidationError("unauthorized access: invalid role")
+	}
+
+	return s.finalizeLogin(ctx, user)
+}
+
+func (s *UserService) finalizeLogin(ctx context.Context, user *models.User) (*models.User, utils.TokenPair, error) {
+	tokenPair, err := utils.GenerateTokenPair(user.ID)
+	if err != nil {
+		return nil, utils.TokenPair{}, e.NewInternalError()
+	}
+
+	user.LastLogin = time.Now()
+	if err := s.userRepo.UpdateUser(user, ctx); err != nil {
+		return nil, utils.TokenPair{}, e.NewInternalError()
+	}
+
+	user.PasswordHash = ""
+	return user, tokenPair, nil
+}
+
+func (s *UserService) sendVerificationEmail(email, name, otp string) {
 	subject := "Email Verification OTP - HealthHub"
 	body := fmt.Sprintf(`Dear %s,
 
@@ -143,14 +149,11 @@ This OTP will expire in 24 Hours.
 For security reasons, DO NOT share this OTP with anyone.
 
 Best regards,
-HealthHub Team`, user.Name, resetOTP)
+HealthHub Team`, name, otp)
 
 	if err := utils.SendEmail(email, subject, body); err != nil {
 		log.Printf("Failed to send verification email: %v", err)
 	}
-
-	user.PasswordHash = ""
-	return user, nil
 }
 
 func (s *UserService) RefreshUserToken(ctx context.Context, refreshToken string) (*models.User, utils.TokenPair, error) {
@@ -159,7 +162,6 @@ func (s *UserService) RefreshUserToken(ctx context.Context, refreshToken string)
 		return nil, utils.TokenPair{}, e.NewValidationError("invalid refresh token")
 	}
 
-	// Get user details
 	userID, err := utils.ExtractUserIDFromToken(refreshToken, env.Jwt.RefreshTokenSecret)
 	if err != nil {
 		return nil, utils.TokenPair{}, e.NewValidationError("invalid token")
@@ -168,61 +170,6 @@ func (s *UserService) RefreshUserToken(ctx context.Context, refreshToken string)
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, utils.TokenPair{}, e.NewValidationError("user not found")
-	}
-
-	user.PasswordHash = ""
-	return user, tokenPair, nil
-}
-
-func (s *UserService) Login(ctx context.Context, email, password string) (*models.User, utils.TokenPair, error) {
-	user, err := s.userRepo.FindByEmail(ctx, email)
-	if err != nil {
-		return nil, utils.TokenPair{}, e.NewValidationError("invalid email or password")
-	}
-
-	err = utils.ComparePassword(password, user.PasswordHash)
-	if err != nil {
-		return nil, utils.TokenPair{}, e.NewValidationError("invalid email or password")
-	}
-
-	tokenPair, err := utils.GenerateTokenPair(user.ID)
-	if err != nil {
-		return nil, utils.TokenPair{}, e.NewInternalError()
-	}
-
-	user.LastLogin = time.Now()
-	if err := s.userRepo.UpdateUser(user, ctx); err != nil {
-		return nil, utils.TokenPair{}, e.NewInternalError()
-	}
-
-	user.PasswordHash = ""
-	return user, tokenPair, nil
-}
-
-func (s *UserService) LoginWithRole(ctx context.Context, email, password string, role models.UserRole) (*models.User, utils.TokenPair, error) {
-	user, err := s.userRepo.FindByEmail(ctx, email)
-	if err != nil {
-		return nil, utils.TokenPair{}, e.NewValidationError("invalid email or password")
-	}
-
-	err = utils.ComparePassword(password, user.PasswordHash)
-	if err != nil {
-		return nil, utils.TokenPair{}, e.NewValidationError("invalid email or password")
-	}
-
-	// Check if user has the required role
-	if user.Role != role {
-		return nil, utils.TokenPair{}, e.NewValidationError("unauthorized access: invalid role")
-	}
-
-	tokenPair, err := utils.GenerateTokenPair(user.ID)
-	if err != nil {
-		return nil, utils.TokenPair{}, e.NewInternalError()
-	}
-
-	user.LastLogin = time.Now()
-	if err := s.userRepo.UpdateUser(user, ctx); err != nil {
-		return nil, utils.TokenPair{}, e.NewInternalError()
 	}
 
 	user.PasswordHash = ""
@@ -267,7 +214,6 @@ func (s *UserService) ForgotPassword(ctx context.Context, email string) error {
 		return e.NewInternalError()
 	}
 
-	// Send reset email with OTP
 	subject := "Password Reset OTP - HealthHub"
 	body := fmt.Sprintf(`Dear %s,
 
@@ -296,12 +242,10 @@ func (s *UserService) ResetPassword(ctx context.Context, email, otp, newPassword
 		return e.NewValidationError("invalid email")
 	}
 
-	// Add OTP format validation
 	if len(otp) != 6 || !utils.IsNumeric(otp) {
 		return e.NewValidationError("invalid OTP format - must be 6 digits")
 	}
 
-	// Verify OTP
 	if user.ResetToken != otp {
 		return e.NewValidationError("invalid OTP")
 	}
@@ -310,7 +254,6 @@ func (s *UserService) ResetPassword(ctx context.Context, email, otp, newPassword
 		return e.NewValidationError("OTP has expired")
 	}
 
-	// Validate new password
 	if err := utils.ValidatePassword(newPassword); err != nil {
 		return fmt.Errorf("invalid password: %w", err)
 	}
@@ -334,7 +277,6 @@ func (s *UserService) HandleGoogleCallback(ctx context.Context, code string) (*m
 		return nil, utils.TokenPair{}, e.NewInternalError()
 	}
 
-	// user info from Google
 	userInfo, err := s.getGoogleUserInfo(token.AccessToken)
 	if err != nil {
 		return nil, utils.TokenPair{}, e.NewInternalError()
@@ -402,7 +344,6 @@ func (s *UserService) ResendOTP(ctx context.Context, email string) error {
 		return e.NewInternalError()
 	}
 
-	// resend verification email with OTP
 	subject := "Email Verification OTP - HealthHub"
 	body := fmt.Sprintf(`Dear %s,
 

@@ -5,7 +5,6 @@ import (
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/services"
 	"HealthHubConnect/internal/utils"
-	"fmt"
 	"net/http"
 )
 
@@ -70,22 +69,20 @@ func (h *HealthHandler) UpdateHealthProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	updates.UserID = userID
-
-	// Get existing profile first
 	existingProfile, err := h.healthService.GetHealthProfile(r.Context(), userID)
 	if err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	fmt.Print(existingProfile)
-	// Update only the changed fields
+	updates.ID = existingProfile.ID
+	updates.CreatedAt = existingProfile.CreatedAt
+
 	if err := h.healthService.UpdateHealthProfile(r.Context(), &updates); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	// Fetch the updated profile
 	updatedProfile, err := h.healthService.GetHealthProfile(r.Context(), userID)
 	if err != nil {
 		GenerateErrorResponse(&w, err)

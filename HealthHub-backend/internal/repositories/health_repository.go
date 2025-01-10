@@ -6,6 +6,8 @@ import (
 
 	e "HealthHubConnect/internal/errors"
 
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -45,16 +47,74 @@ func (r *HealthRepository) GetHealthProfile(ctx context.Context, userID uint) (*
 }
 
 func (r *HealthRepository) UpdateHealthProfile(ctx context.Context, profile *models.HealthProfile) error {
-	result := r.db.WithContext(ctx).Model(&models.HealthProfile{}).
-		Where("user_id = ?", profile.UserID).
-		Updates(profile)
-	if result.Error != nil {
-		return e.NewWrapperError(result.Error)
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return e.NewWrapperError(tx.Error)
 	}
-	if result.RowsAffected == 0 {
-		return e.NewObjectNotFoundError("health profile")
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Model(profile).Updates(map[string]interface{}{
+		"blood_type":    profile.BloodType,
+		"height":        profile.Height,
+		"weight":        profile.Weight,
+		"gender":        profile.Gender,
+		"date_of_birth": profile.DateOfBirth,
+		"street":        profile.Street,
+		"city":          profile.City,
+		"state":         profile.State,
+		"postal_code":   profile.PostalCode,
+		"country":       profile.Country,
+		"last_updated":  time.Now(),
+	}).Error; err != nil {
+		tx.Rollback()
+		return e.NewWrapperError(err)
 	}
-	return nil
+
+	if len(profile.EmergencyContacts) > 0 {
+		for i := range profile.EmergencyContacts {
+			profile.EmergencyContacts[i].UserID = profile.UserID
+		}
+		if err := tx.Create(&profile.EmergencyContacts).Error; err != nil {
+			tx.Rollback()
+			return e.NewWrapperError(err)
+		}
+	}
+
+	if len(profile.Allergy) > 0 {
+		for i := range profile.Allergy {
+			profile.Allergy[i].UserID = profile.UserID
+		}
+		if err := tx.Create(&profile.Allergy).Error; err != nil {
+			tx.Rollback()
+			return e.NewWrapperError(err)
+		}
+	}
+
+	if len(profile.Medication) > 0 {
+		for i := range profile.Medication {
+			profile.Medication[i].UserID = profile.UserID
+		}
+		if err := tx.Create(&profile.Medication).Error; err != nil {
+			tx.Rollback()
+			return e.NewWrapperError(err)
+		}
+	}
+
+	if len(profile.VitalSign) > 0 {
+		for i := range profile.VitalSign {
+			profile.VitalSign[i].UserID = profile.UserID
+		}
+		if err := tx.Create(&profile.VitalSign).Error; err != nil {
+			tx.Rollback()
+			return e.NewWrapperError(err)
+		}
+	}
+
+	return tx.Commit().Error
 }
 
 func (r *HealthRepository) DeleteHealthProfile(ctx context.Context, userID uint) error {

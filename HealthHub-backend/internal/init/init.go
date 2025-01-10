@@ -27,13 +27,11 @@ var (
 
 func Init() error {
 	var err error
-	Loggers = logger.InitializeLogger(env.Logger)
 
-	// Initialize WebSocket Manager
+	// intializing all the key componenets
+	Loggers = logger.InitializeLogger(env.Logger)
 	WsManager = initWebSocket()
 	Loggers.GeneralLogger.Info().Msg("Successfully initialized WebSocket manager")
-
-	// Initialize Google Maps client
 	MapsClient, err = initGoogleMapsClient()
 	if err != nil {
 		Loggers.GeneralLogger.Error().Err(err).Msg("Failed to initialize Google Maps client")
@@ -60,8 +58,6 @@ func Init() error {
 
 func InitServer(db *gorm.DB) error {
 	router := mux.NewRouter()
-
-	// Setup routes with WebSocket manager
 	routes.SetupRoutes(router, db, MapsClient, WsManager)
 
 	port := env.ServerPort
@@ -88,8 +84,6 @@ func InitServer(db *gorm.DB) error {
 func Cleanup() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
-	// The maps client doesn't need explicit cleanup
 
 	if server != nil {
 		if err := server.Shutdown(ctx); err != nil {

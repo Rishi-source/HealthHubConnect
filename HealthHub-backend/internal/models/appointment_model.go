@@ -28,10 +28,12 @@ type Appointment struct {
 	EndTime     time.Time         `json:"end_time" gorm:"not null"`
 	Status      AppointmentStatus `json:"status" gorm:"type:varchar(20);default:'PENDING'"`
 	Description string            `json:"description"`
-	// For online appointments
-	MeetingLink string    `json:"meeting_link,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	// Location details for offline appointments
+	Address   string    `json:"address,omitempty"`
+	Latitude  float64   `json:"latitude,omitempty"`
+	Longitude float64   `json:"longitude,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type DoctorAvailability struct {

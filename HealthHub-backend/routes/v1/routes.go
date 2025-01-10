@@ -13,7 +13,7 @@ import (
 )
 
 func RegisterRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client, wsManager *websocket.Manager) {
-	// Register different route groups
+	//different route groups
 	RegisterAuthRoutes(router, db)
 	RegisterHealthRoutes(router, db)
 	RegisterHospitalRoutes(router, db, mapsClient)

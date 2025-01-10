@@ -4,7 +4,6 @@ import (
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/repositories"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -19,32 +18,43 @@ type AppointmentService interface {
 }
 
 type appointmentService struct {
-	appointmentRepo   repositories.AppointmentRepository
-	conferenceService ConferenceService
+	appointmentRepo repositories.AppointmentRepository
 }
 
 func NewAppointmentService(appointmentRepo repositories.AppointmentRepository) AppointmentService {
-	return &appointmentService{
-		appointmentRepo:   appointmentRepo,
-		conferenceService: NewConferenceService(),
-	}
+	return &appointmentService{appointmentRepo: appointmentRepo}
 }
 
 func (s *appointmentService) CreateAppointment(appointment *models.Appointment) error {
-	if appointment.StartTime.Before(time.Now()) {
-		return errors.New("appointment time cannot be in the past")
+	now := time.Now()
+	if appointment.Date.Before(now) {
+		return errors.New("appointment date cannot be in the past")
 	}
 
 	if appointment.Type != models.TypeOnline && appointment.Type != models.TypeOffline {
 		return errors.New("invalid appointment type")
 	}
 
-	if appointment.Type == models.TypeOnline {
-		conferenceDetails, err := s.conferenceService.CreateMeeting(appointment)
-		if err != nil {
-			return fmt.Errorf("failed to create conference: %w", err)
+	if appointment.EndTime.Before(appointment.StartTime) {
+		return errors.New("end time cannot be before start time")
+	}
+	availability, err := s.appointmentRepo.GetDoctorAvailability(appointment.DoctorID)
+	if err != nil {
+		return err
+	}
+
+	isAvailable := false
+	for _, slot := range availability {
+		if slot.Date.Equal(appointment.Date) &&
+			!slot.StartTime.After(appointment.StartTime) &&
+			!slot.EndTime.Before(appointment.EndTime) {
+			isAvailable = true
+			break
 		}
-		appointment.MeetingLink = conferenceDetails.JoinURL
+	}
+
+	if !isAvailable {
+		return errors.New("selected time slot is not available")
 	}
 
 	return s.appointmentRepo.CreateAppointment(appointment)
@@ -54,13 +64,6 @@ func (s *appointmentService) UpdateAppointmentStatus(id uint, status models.Appo
 	appointment, err := s.appointmentRepo.GetAppointmentByID(id)
 	if err != nil {
 		return err
-	}
-
-	// If appointment is cancelled and it's an online appointment, delete the meeting
-	if status == models.StatusCancelled && appointment.Type == models.TypeOnline {
-		if err := s.conferenceService.DeleteMeeting(appointment.MeetingLink); err != nil {
-			return fmt.Errorf("failed to delete conference: %w", err)
-		}
 	}
 
 	appointment.Status = status

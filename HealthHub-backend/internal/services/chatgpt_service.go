@@ -50,7 +50,6 @@ type ChatGPTResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// NewChatGPTService creates a new instance of ChatGPTService
 func NewChatGPTService() *ChatGPTService {
 	return &ChatGPTService{
 		apiKey: env.GetOpenAIKey(),
@@ -60,12 +59,10 @@ func NewChatGPTService() *ChatGPTService {
 	}
 }
 
-// GetResponse generates a response for a single query
 func (s *ChatGPTService) GetResponse(ctx context.Context, query string) (string, error) {
 	return s.ProcessChat(ctx, []ChatGPTMessage{{Role: "user", Content: query}})
 }
 
-// ProcessChat handles chat with conversation history
 func (s *ChatGPTService) ProcessChat(ctx context.Context, messages []ChatGPTMessage) (string, error) {
 	if len(messages) == 0 {
 		return "", errors.New("no messages provided")
@@ -125,20 +122,14 @@ func (s *ChatGPTService) ProcessChat(ctx context.Context, messages []ChatGPTMess
 	return result.Choices[0].Message.Content, nil
 }
 
-// GetStreamingResponse generates a streaming response (for future implementation)
 func (s *ChatGPTService) GetStreamingResponse(ctx context.Context, messages []ChatGPTMessage, responseChan chan<- string) error {
-	// Implement streaming response logic here
-	// This is a placeholder for future streaming implementation
 	return errors.New("streaming not implemented yet")
 }
 
-// preprocessQuery sanitizes and enhances the query
 func (s *ChatGPTService) preprocessQuery(query string) string {
-	// Add any query preprocessing logic here
 	return query
 }
 
-// validateResponse checks if the response is appropriate
 func (s *ChatGPTService) validateResponse(response string) error {
 	if len(response) == 0 {
 		return errors.New("empty response received")

@@ -12,7 +12,6 @@ import (
 	"HealthHubConnect/pkg/logger"
 )
 
-// ParseRequestBody parses and validates JSON request body
 func ParseRequestBody(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
@@ -47,7 +46,6 @@ func ParseRequestBody(w http.ResponseWriter, r *http.Request, dst interface{}) e
 	return nil
 }
 
-// getRequiredFields extracts required fields from struct tags
 func getRequiredFields(dst interface{}) []string {
 	var required []string
 	t := reflect.TypeOf(dst).Elem()
@@ -69,7 +67,6 @@ func getRequiredFields(dst interface{}) []string {
 	return required
 }
 
-// validateRequiredFields checks if all required fields are present
 func validateRequiredFields(data map[string]interface{}, required []string) []string {
 	var missing []string
 	for _, field := range required {
@@ -80,7 +77,6 @@ func validateRequiredFields(data map[string]interface{}, required []string) []st
 	return missing
 }
 
-// isEmptyValue checks if a value should be considered empty
 func isEmptyValue(value interface{}) bool {
 	switch v := value.(type) {
 	case nil:

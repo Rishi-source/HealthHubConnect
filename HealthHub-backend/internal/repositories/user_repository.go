@@ -65,7 +65,6 @@ func (ur *UserRepository) FindByID(ctx context.Context, id uint) (*models.User, 
 	return &user, nil
 }
 
-// VerifyUsers checks if both users exist in the database
 func (r *UserRepository) VerifyUsers(ctx context.Context, userID1, userID2 uint) error {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&models.User{}).

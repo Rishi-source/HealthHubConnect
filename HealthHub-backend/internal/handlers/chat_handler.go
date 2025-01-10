@@ -38,7 +38,6 @@ func NewChatGPTHandler(chatGPTService *services.ChatGPTService, userRepo *reposi
 }
 
 func (h *ChatGPTHandler) HandleChatQuery(w http.ResponseWriter, r *http.Request) {
-	// Get context from request with timeout
 	ctx := r.Context()
 
 	var req ChatRequest
@@ -47,6 +46,7 @@ func (h *ChatGPTHandler) HandleChatQuery(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	req.Query += createHealthPrompt()
 	if req.Query == "" {
 		http.Error(w, "Query cannot be empty", http.StatusBadRequest)
 		return
@@ -57,7 +57,6 @@ func (h *ChatGPTHandler) HandleChatQuery(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		status := http.StatusInternalServerError
-		// Check if context was canceled by client
 		if ctx.Err() != nil {
 			status = http.StatusRequestTimeout
 		}
@@ -80,14 +79,12 @@ func (h *ChatGPTHandler) HandleChatQuery(w http.ResponseWriter, r *http.Request)
 func (h *ChatGPTHandler) HandleHealthSummary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Get user ID using the utility function
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Get health profile from user repository
 	user, err := h.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		http.Error(w, "Failed to fetch user data", http.StatusInternalServerError)
@@ -99,10 +96,8 @@ func (h *ChatGPTHandler) HandleHealthSummary(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Create a prompt for ChatGPT
 	prompt := createHealthSummaryPrompt(user.HealthProfile)
 
-	// Get response from ChatGPT
 	summary, err := h.chatGPTService.GetResponse(ctx, prompt)
 	w.Header().Set("Content-Type", "application/json")
 
@@ -122,8 +117,10 @@ func (h *ChatGPTHandler) HandleHealthSummary(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+func createHealthPrompt() string {
+	return `provide answer keeping in assuming you are a health professional and you name is healthhub connect:`
+}
 func createHealthSummaryPrompt(profile *models.HealthProfile) string {
-	// Create a detailed prompt for ChatGPT
 	prompt := fmt.Sprintf(`Please provide a concise summary of the following health information:
 
 Patient Details:
