@@ -1,6 +1,5 @@
 <!doctype html>
 <html lang="en" class="light">
-
 <head>
   <script>
     if (localStorage.getItem('darkMode') === 'dark' ||
@@ -8,7 +7,20 @@
         window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     }
+
+    function updateFavicon() {
+      const pathname = window.location.pathname;
+      const favicon = document.querySelector("link[rel='icon'][type='image/svg+xml']");
+      if (favicon) {
+        favicon.href = pathname.startsWith('/doctor') ? '/red.svg' : '/vite.svg';
+      }
+    }
+
+    window.addEventListener('load', updateFavicon);
+
+    window.addEventListener('popstate', updateFavicon);
   </script>
+  
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -38,5 +50,5 @@
       background-color: black;
     }
   </style>
-
+</body>
 </html>

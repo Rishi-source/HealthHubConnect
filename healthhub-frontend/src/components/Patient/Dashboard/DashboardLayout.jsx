@@ -11,6 +11,8 @@ import DashboardHome from './DashboardHome';
 import EditProfile from './EditProfile';
 import NearbyHospital from './Nearbyhospitals';
 import AppointmentsPageWithTheme from './AppointmentsPage';
+import Records from './Records';
+import SettingsPage from './Settings';
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
@@ -25,6 +27,9 @@ const DashboardLayout = () => {
     { id: 'profile', path: '/dashboard/profile/edit', icon: User, label: 'Edit Profile' },
     { id: 'appointments', path: '/dashboard/appointments', icon: Calendar, label: 'Appointments' },
     { id: 'hospitals', path: '/dashboard/hospitals', icon: Hospital, label: 'Hospitals' },
+    { id: 'records', path: '/dashboard/records', icon: FileText, label: 'Records' },
+    { id: 'settings', path: '/dashboard/settings', icon: Settings, label: 'Settings' },
+
   ];
 
   const handleLogout = () => {
@@ -263,6 +268,9 @@ const DashboardLayout = () => {
               <Route path="/profile/edit" element={<EditProfile />} />
               <Route path="/hospitals" element={<NearbyHospital />} />
               <Route path="/appointments" element={<AppointmentsPageWithTheme />} />
+              <Route path="/records" element={<Records />} />
+              <Route path="/settings" element={<SettingsPage />} />
+
             </Routes>
           </div>
         </motion.main>

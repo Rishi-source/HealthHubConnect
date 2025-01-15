@@ -128,9 +128,9 @@ const VitalStatsStep = ({
     switch (type) {
       case 'bloodPressure':
         if (field === 'systolic') {
-          error = validateReading(value, 70, 190, 'Systolic pressure');
+          error = validateReading(value, 40, 190, 'Systolic pressure');
         } else if (field === 'diastolic') {
-          error = validateReading(value, 40, 100, 'Diastolic pressure');
+          error = validateReading(value, 60, 200, 'Diastolic pressure');
         }
         break;
       case 'heartRate':
@@ -140,12 +140,12 @@ const VitalStatsStep = ({
         break;
       case 'temperature':
         if (field === 'value') {
-          error = validateReading(value, 35, 42, 'Temperature');
+          error = validateReading(value, 92, 108, 'Temperature');
         }
         break;
       case 'oxygenSaturation':
         if (field === 'percentage') {
-          error = validateReading(value, 80, 100, 'Oxygen saturation');
+          error = validateReading(value, 70, 100, 'Oxygen saturation');
         }
         break;
     }
@@ -180,21 +180,6 @@ const VitalStatsStep = ({
       [fieldId]: true
     }));
 
-    const error = validateReading(
-      value,
-      field === 'systolic' ? 70 : field === 'diastolic' ? 40 :
-        field === 'beatsPerMinute' ? 40 : field === 'value' ? 35 : 80,
-      field === 'systolic' ? 190 : field === 'diastolic' ? 100 :
-        field === 'beatsPerMinute' ? 200 : field === 'value' ? 42 : 100,
-      `${type} ${field}`
-    );
-
-    if (error) {
-      setErrors(prev => ({
-        ...prev,
-        [fieldId]: error
-      }));
-    }
   };
 
   const currentVitals = {
@@ -232,7 +217,7 @@ const VitalStatsStep = ({
             unit="mmHg"
             error={errors.bloodPressure_systolic}
             touched={touched.bloodPressure_systolic}
-            min={70}
+            min={50}
             max={190}
             placeholder="Enter systolic pressure"
             onChange={handleVitalChange}
@@ -249,8 +234,8 @@ const VitalStatsStep = ({
             unit="mmHg"
             error={errors.bloodPressure_diastolic}
             touched={touched.bloodPressure_diastolic}
-            min={40}
-            max={100}
+            min={60}
+            max={200}
             placeholder="Enter diastolic pressure"
             onChange={handleVitalChange}
             onFocus={handleFocus}
@@ -290,11 +275,11 @@ const VitalStatsStep = ({
           type="temperature"
           field="value"
           value={currentVitals.temperature.value}
-          unit="°C"
+          unit="°F"
           error={errors.temperature_value}
           touched={touched.temperature_value}
-          min={35}
-          max={42}
+          min={92}
+          max={108}
           placeholder="Enter temperature"
           onChange={handleVitalChange}
           onFocus={handleFocus}
@@ -311,7 +296,7 @@ const VitalStatsStep = ({
           unit="%"
           error={errors.oxygenSaturation_percentage}
           touched={touched.oxygenSaturation_percentage}
-          min={80}
+          min={70}
           max={100}
           placeholder="Enter oxygen saturation"
           onChange={handleVitalChange}

@@ -3,9 +3,10 @@ import {
   Heart, LogIn, UserPlus, Eye, EyeOff,
   Mail, Lock, User, ArrowRight, Check,
   Shield, Activity, Calendar, X, Sparkles,
-  Phone
+  Phone,Stethoscope
 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from "framer-motion";
 
 const buildGoogleOAuthURL = () => {
   const params = {
@@ -117,7 +118,7 @@ const AuthPage = ({ onComplete }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { initiateGoogleLogin, handleGoogleCallback } = useGoogleAuth(navigate);
-
+  const [userType, setUserType] = useState(null); 
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -136,6 +137,7 @@ const AuthPage = ({ onComplete }) => {
   const [passwordsMatch, setPasswordsMatch] = useState(true);
   const [passwordError, setPasswordError] = useState('');
 
+  
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const code = urlParams.get('code');
@@ -163,6 +165,16 @@ const AuthPage = ({ onComplete }) => {
         });
     }
   }, [location, handleGoogleCallback, navigate]);
+
+  const handleUserTypeSelection = (type) => {
+    if (type === 'doctor') {
+      // Directly navigate to doctor auth with replace to prevent back button issues
+      navigate('/doctor', { replace: true });
+    } else {
+      setUserType('patient');
+    }
+  };
+    
 
   const validatePhone = (phone) => {
     const regex = /^[0-9]{10}$/;
@@ -236,12 +248,13 @@ const AuthPage = ({ onComplete }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid()) return;
-
+  
     setIsLoading(true);
     setError('');
-
+  
     try {
       if (isLogin) {
+        console.log('Starting login process...');
         const response = await fetch('https://anochat.in/v1/auth/login', {
           method: 'POST',
           headers: {
@@ -252,24 +265,31 @@ const AuthPage = ({ onComplete }) => {
             password: formData.password,
           })
         });
-
+  
         const data = await response.json();
         console.log('Login response:', data);
-
+  
         if (response.ok && data.success) {
           setFormComplete(true);
+          
           const { access_token, refresh_token } = data.data.tokens;
           localStorage.setItem('access_token', access_token);
           localStorage.setItem('refresh_token', refresh_token);
           localStorage.setItem('user', JSON.stringify(data.data.user));
+          
+          const storedToken = localStorage.getItem('access_token');
+          if (!storedToken) {
+            throw new Error('Failed to store authentication data');
+          }
+          
           navigate('/dashboard');
         } else {
           throw new Error(data.message || 'Login failed');
         }
-      }
-      else {
+      } else {
+        console.log('Starting signup process...');
         try {
-          let signupResponse = await fetch('https://anochat.in/v1/auth/signup', {
+          const signupResponse = await fetch('https://anochat.in/v1/auth/signup', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -281,24 +301,24 @@ const AuthPage = ({ onComplete }) => {
               phone: parseInt(formData.phoneNumber, 10)
             })
           });
-
+  
           const signupData = await signupResponse.json();
-
+          console.log('Signup response:', signupData);
+  
           if (signupData.success) {
-            if (signupData.data.tokens) {
-              const { access_token, refresh_token } = signupData.data.tokens;
-              localStorage.setItem('access_token', access_token);
-              localStorage.setItem('refresh_token', refresh_token);
-            }
-
-            localStorage.setItem('user', JSON.stringify(signupData.data.user));
-
             setFormComplete(true);
-
+            
+            localStorage.setItem('signup_email', formData.email);
+            localStorage.setItem('signup_password', formData.password);
+            
+            if (signupData.data?.user) {
+              localStorage.setItem('user', JSON.stringify(signupData.data.user));
+            }
+  
             if (typeof onComplete === 'function') {
               onComplete(formData.email);
             }
-
+  
             setFormData({
               email: '',
               password: '',
@@ -311,10 +331,13 @@ const AuthPage = ({ onComplete }) => {
           }
         } catch (error) {
           console.error('Signup error:', error);
-          throw new Error(error.message || 'Failed to create account');
+          localStorage.removeItem('signup_email');
+          localStorage.removeItem('signup_password');
+          throw error;
         }
       }
     } catch (error) {
+      console.error('Auth error:', error);
       setError(error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -470,6 +493,73 @@ const AuthPage = ({ onComplete }) => {
         </div>
 
         <div className="lg:w-1/2 p-8 lg:p-16 flex flex-col justify-center bg-white/80 backdrop-blur-lg">
+        {!userType ? (
+  <div className="max-w-md mx-auto w-full">
+    <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-8 text-center">
+      Choose Your Role
+    </h2>
+    
+    <div className="grid grid-cols-2 gap-6">
+      
+      <motion.button
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => setUserType('patient')}
+        className="p-8 rounded-2xl border-2 border-gray-200 hover:border-teal-500 
+          bg-white hover:bg-teal-50 transition-all duration-300 group"
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="p-4 rounded-full bg-teal-100 text-teal-600 group-hover:bg-teal-200 
+            transition-colors duration-300">
+            <User className="w-8 h-8" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">I'm a Patient</h3>
+            <p className="text-sm text-gray-500">
+              Find doctors, book appointments, and manage your health
+            </p>
+          </div>
+        </div>
+      </motion.button>
+
+      <motion.button
+  whileHover={{ scale: 1.03 }}
+  whileTap={{ scale: 0.98 }}
+  onClick={() => handleUserTypeSelection('doctor')}
+  className="p-8 rounded-2xl border-2 border-gray-200 hover:border-red-500 
+    bg-white hover:bg-red-50 transition-all duration-300 group"
+>
+        <div className="flex flex-col items-center gap-4">
+          <div className="p-4 rounded-full bg-red-100 text-red-600 group-hover:bg-red-200 
+            transition-colors duration-300">
+            <Stethoscope className="w-8 h-8" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">I'm a Doctor</h3>
+            <p className="text-sm text-gray-500">
+              Join our network and connect with patients
+            </p>
+          </div>
+        </div>
+      </motion.button>
+    </div>
+
+    <div className="mt-12 text-center space-y-6">
+      <div className="flex justify-center gap-8">
+        {['Secure Platform', 'HIPAA Compliant', 'Verified Professionals'].map((text, i) => (
+          <span
+            key={i}
+            className="text-sm text-gray-500 flex items-center gap-2"
+          >
+            <Shield className="h-4 w-4 text-teal-500" />
+            {text}
+          </span>
+        ))}
+      </div>
+    </div>
+  </div>
+) : (
+
           <div className="max-w-md mx-auto w-full">
             <div className="flex justify-between items-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-800">
@@ -730,7 +820,7 @@ const AuthPage = ({ onComplete }) => {
                 ))}
               </div>
             </div>
-          </div>
+          </div>)}
         </div>
       </div>
     </div>

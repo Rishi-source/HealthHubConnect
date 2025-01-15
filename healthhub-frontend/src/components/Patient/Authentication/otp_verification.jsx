@@ -164,6 +164,8 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
 
   const verifyOTP = async (otpCode) => {
     try {
+      console.log('Starting OTP verification...');
+      
       const response = await fetch('https://anochat.in/v1/auth/verify-otp', {
         method: 'POST',
         headers: {
@@ -171,58 +173,104 @@ const OTPVerification = ({ email = "example@email.com", onVerificationComplete }
         },
         body: JSON.stringify({
           email: email,
-          otp: otpCode,
+          otp: otpCode
         })
       });
-
+  
       const data = await response.json();
-
+      console.log('OTP verification response:', data);
+  
       if (!response.ok) {
         throw new Error(data.message || 'Invalid verification code');
       }
-
-      if (data.success && data.data) {
-        if (data.data.tokens) {
-          const { access_token, refresh_token } = data.data.tokens;
-          localStorage.setItem('access_token', access_token);
-          localStorage.setItem('refresh_token', refresh_token);
-        }
-
-        if (data.data.user) {
-          localStorage.setItem('user', JSON.stringify(data.data.user));
-        }
-
-        return true;
+  
+      if (!data.success) {
+        throw new Error('OTP verification failed');
       }
-
-      throw new Error('Verification failed');
+  
+      const storedPassword = localStorage.getItem('signup_password');
+      if (!storedPassword) {
+        throw new Error('Login credentials not found');
+      }
+  
+      console.log('Proceeding with login after OTP verification...');
+      const loginResponse = await fetch('https://anochat.in/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          password: storedPassword
+        })
+      });
+  
+      const loginData = await loginResponse.json();
+      console.log('Login response after OTP:', loginData);
+  
+      if (!loginResponse.ok || !loginData.success) {
+        throw new Error('Login failed after OTP verification');
+      }
+  
+      if (loginData.data?.tokens) {
+        const { access_token, refresh_token } = loginData.data.tokens;
+        
+        localStorage.clear();
+        
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('refresh_token', refresh_token);
+        
+        if (loginData.data.user) {
+          localStorage.setItem('user', JSON.stringify(loginData.data.user));
+        }
+        
+        localStorage.removeItem('signup_password');
+        localStorage.removeItem('signup_email');
+        
+        const storedToken = localStorage.getItem('access_token');
+        if (!storedToken) {
+          throw new Error('Failed to store authentication tokens');
+        }
+        
+        return true;
+      } else {
+        throw new Error('No authentication tokens in login response');
+      }
     } catch (error) {
-      console.error('OTP Verification error:', error);
-      throw new Error(error.message || 'Failed to verify code. Please try again.');
+      console.error('Verification process error:', error);
+      throw error;
     }
   };
-
+  
   const handleVerification = async () => {
     try {
       setIsVerifying(true);
       setError('');
-
+  
       const otpCode = otp.join('');
       const result = await verifyOTP(otpCode);
-
+  
       if (result) {
         setVerificationComplete(true);
         setSuccessMessage('Verification successful!');
-
+  
+        const finalCheck = localStorage.getItem('access_token');
+        if (!finalCheck) {
+          throw new Error('Authentication verification failed');
+        }
+  
         await new Promise(resolve => setTimeout(resolve, 1000));
-
-        localStorage.setItem('isAuthenticated', 'true');
-
+  
         onVerificationComplete?.();
       }
     } catch (error) {
+      console.error('Verification handling error:', error);
       setError(error.message);
-      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('signup_password');
+      localStorage.removeItem('signup_email');
     } finally {
       setIsVerifying(false);
     }

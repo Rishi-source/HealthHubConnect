@@ -9,12 +9,15 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'react-hot-toast';
 
-import AuthPage from './components/authentication';
-import OTPVerification from './components/otp_verification';
-import HealthProfileForm from './components/medication_details';
-import ForgotPasswordFlow from './components/ForgotPasswordFlow';
-import DashboardLayout from './components/DashboardLayout';
-import LoadingTransition from './components/LoadingTransition';
+import AuthPage from './components/Patient/Authentication/authentication';
+import OTPVerification from './components/Patient/Authentication/otp_verification';
+import HealthProfileForm from './components/Patient/Health Profile/medication_details';
+import ForgotPasswordFlow from './components/Patient/Authentication/Forgot Password/ForgotPasswordFlow';
+import DashboardLayout from './components/Patient/Dashboard/DashboardLayout';
+import LoadingTransition from './components/Patient/Authentication/Forgot Password/LoadingTransition';
+import DoctorAuthFlow from './components/Doctor/Authentication/DoctorAuthFlow';
+import DoctorLayout from './components/Doctor/Dashboard/DoctorLayout.jsx';
+import DoctorDashboard from './components/Doctor/Dashboard/DoctorDashboard.jsx';
 
 export const AuthContext = createContext({
   email: '',
@@ -113,7 +116,7 @@ const useAuth = () => {
         return true;
       }
 
-      const response = await fetch('https://anochat.in/v1/auth/token/refresh', {
+      const response = await fetch('https://anochat.in/v1/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -156,8 +159,8 @@ const useAuth = () => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Start with false
+  const [isLoading, setIsLoading] = useState(true); // Start with loading
   const navigate = useNavigate();
   const { verifyAuth, refreshAccessToken, clearAuth, isTokenExpired } = useAuth();
   const authCheckRef = useRef(false);
@@ -171,12 +174,17 @@ const ProtectedRoute = ({ children }) => {
 
       try {
         const accessToken = localStorage.getItem('access_token');
+        console.log('Access Token Present:', !!accessToken);
 
         if (!accessToken) {
           throw new Error('No access token');
         }
 
-        if (!isTokenExpired(accessToken)) {
+        const tokenExpired = isTokenExpired(accessToken);
+        console.log('Token Expired:', tokenExpired);
+
+        if (!tokenExpired) {
+          console.log('Token is valid');
           if (mounted) {
             setIsAuthenticated(true);
             setIsLoading(false);
@@ -184,16 +192,16 @@ const ProtectedRoute = ({ children }) => {
           return;
         }
 
-        if (mounted) {
-          setIsLoading(true);
-        }
-
+        console.log('Attempting token refresh...');
         const refreshSuccess = await refreshAccessToken();
+        console.log('Token refresh success:', refreshSuccess);
+
         if (!refreshSuccess) {
           throw new Error('Token refresh failed');
         }
 
         const isValid = await verifyAuth();
+        console.log('Auth verification result:', isValid);
 
         if (mounted) {
           setIsAuthenticated(isValid);
@@ -217,33 +225,17 @@ const ProtectedRoute = ({ children }) => {
       }
     };
 
-    const timer = setTimeout(checkAuth, 100);
+    checkAuth();
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
     };
   }, [navigate, verifyAuth, refreshAccessToken, clearAuth, isTokenExpired]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-white">
-        <div className="relative bg-white p-8 rounded-2xl shadow-lg space-y-4 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-blue-500/10 animate-pulse" />
-          <div className="relative">
-            <div className="flex items-center justify-center mb-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-teal-500/20 rounded-full blur-lg animate-pulse" />
-                <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-            </div>
-            <p className="text-gray-600 text-center font-medium">
-              Verifying your session...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent"></div>
+    </div>;
   }
 
   return isAuthenticated ? children : null;
@@ -257,16 +249,30 @@ const App = () => {
   const navigate = useNavigate();
 
   const handleAuthSuccess = useCallback((loginData) => {
+    console.log('Auth success data:', loginData);
+    
+    if (!loginData?.data?.tokens) {
+      console.error('Invalid login data');
+      return;
+    }
+    
     const { tokens, user } = loginData.data;
+    
+    localStorage.clear();
+    
     localStorage.setItem('access_token', tokens.access_token);
     localStorage.setItem('refresh_token', tokens.refresh_token);
     localStorage.setItem('user', JSON.stringify(user));
+    
     setUser(user);
     setIsAuthenticated(true);
   }, []);
-
+  
   const handleAuthComplete = useCallback((userEmail, loginData) => {
+    console.log('Auth complete:', { userEmail, loginData });
+    
     setEmail(userEmail);
+    
     if (loginData) {
       handleAuthSuccess(loginData);
       navigate('/dashboard');
@@ -274,11 +280,20 @@ const App = () => {
       navigate('/otp-verification');
     }
   }, [navigate, handleAuthSuccess]);
-
+  
   const handleOTPComplete = useCallback(() => {
+    console.log('OTP verification complete');
+    
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      console.error('No access token after OTP');
+      navigate('/auth');
+      return;
+    }
+    
     navigate('/profile');
   }, [navigate]);
-
+  
   const handleProfileComplete = useCallback(async (data) => {
     try {
       setFormData(data);
@@ -312,9 +327,9 @@ const App = () => {
         {showLoading && <LoadingTransition onComplete={handleLoadingComplete} />}
 
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/auth" replace />} />
 
-          <Route path="/auth" element={
+        <Route path="/auth" element={
             <PageTransition>
               <AuthPage onComplete={handleAuthComplete} />
             </PageTransition>
@@ -377,6 +392,18 @@ const App = () => {
                   </motion.button>
                 </motion.div>
               </div>
+            </PageTransition>
+          } />
+          <Route path="/doctor/*" element={
+            <PageTransition>
+              <DoctorAuthFlow />
+            </PageTransition>
+          } />
+          <Route path="/doctor/dashboard" element={
+            <PageTransition>
+              <DoctorLayout>
+                <DoctorDashboard />
+              </DoctorLayout>
             </PageTransition>
           } />
         </Routes>

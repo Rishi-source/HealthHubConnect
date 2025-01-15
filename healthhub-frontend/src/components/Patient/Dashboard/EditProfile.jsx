@@ -10,12 +10,12 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import BasicInfoStep from './basic_information';
-import ContactDetailsStep from './contact_detail';
-import EmergencyContactStep from './emergency_contact';
-import VitalStatsStep from './vital_stats';
-import AllergiesStep from './Allergies';
-import MedicationsStep from './Medications';
+import BasicInfoStep from '../Health Profile/basic_information';
+import ContactDetailsStep from '../Health Profile/contact_detail';
+import EmergencyContactStep from '../Health Profile/emergency_contact';
+import VitalStatsStep from '../Health Profile/vital_stats';
+import AllergiesStep from '../Health Profile/Allergies';
+import MedicationsStep from '../Health Profile/Medications';
 
 const InputField = ({
   icon: Icon,
@@ -272,7 +272,6 @@ const EditProfile = () => {
 
       const transformedData = {
         name: data.user.name || '',
-        email: data.user.email || '',
         phone: data.user.phone || '',
         photo: data.photo || '',
         dateOfBirth: data.date_of_birth ? new Date(data.date_of_birth).toISOString().split('T')[0] : '',
@@ -364,11 +363,6 @@ const EditProfile = () => {
     const newErrors = {};
     if (!profileData.name?.trim()) {
       newErrors.name = 'Name is required';
-    }
-    if (!profileData.email?.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
-      newErrors.email = 'Invalid email format';
     }
     if (!profileData.phone?.trim()) {
       newErrors.phone = 'Phone number is required';
@@ -727,16 +721,6 @@ const EditProfile = () => {
                 error={errors.name}
                 required
                 placeholder="Enter your full name"
-              />
-              <InputField
-                icon={Mail}
-                label="Email"
-                type="email"
-                value={profileData.email}
-                onChange={handleChange('email')}
-                error={errors.email}
-                required
-                placeholder="Enter your email"
               />
               <InputField
                 icon={Phone}
