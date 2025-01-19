@@ -1,0 +1,147 @@
+package models
+
+import (
+	"encoding/json"
+
+	"gorm.io/gorm"
+)
+
+type DoctorProfile struct {
+	gorm.Model
+	UserID          uint            `json:"userId"`
+	User            User            `json:"-"`
+	BasicInfoJSON   string          `json:"-" gorm:"column:basic_info"`
+	BasicInfo       BasicInfo       `json:"basicInfo" gorm:"-"`
+	QualJSON        string          `json:"-" gorm:"column:qualifications"`
+	Qualifications  Qualifications  `json:"qualifications" gorm:"-"`
+	PracticeJSON    string          `json:"-" gorm:"column:practice_details"`
+	PracticeDetails PracticeDetails `json:"practiceDetails" gorm:"-"`
+	SpecJSON        string          `json:"-" gorm:"column:specializations"`
+	Specializations SpecInfo        `json:"specializations" gorm:"-"`
+}
+
+func (dp *DoctorProfile) BeforeSave(tx *gorm.DB) error {
+	if basicInfoJSON, err := json.Marshal(dp.BasicInfo); err == nil {
+		dp.BasicInfoJSON = string(basicInfoJSON)
+	}
+	if qualJSON, err := json.Marshal(dp.Qualifications); err == nil {
+		dp.QualJSON = string(qualJSON)
+	}
+	if practiceJSON, err := json.Marshal(dp.PracticeDetails); err == nil {
+		dp.PracticeJSON = string(practiceJSON)
+	}
+	if specJSON, err := json.Marshal(dp.Specializations); err == nil {
+		dp.SpecJSON = string(specJSON)
+	}
+	return nil
+}
+
+func (dp *DoctorProfile) AfterFind(tx *gorm.DB) error {
+	if dp.BasicInfoJSON != "" {
+		json.Unmarshal([]byte(dp.BasicInfoJSON), &dp.BasicInfo)
+	}
+	if dp.QualJSON != "" {
+		json.Unmarshal([]byte(dp.QualJSON), &dp.Qualifications)
+	}
+	if dp.PracticeJSON != "" {
+		json.Unmarshal([]byte(dp.PracticeJSON), &dp.PracticeDetails)
+	}
+	if dp.SpecJSON != "" {
+		json.Unmarshal([]byte(dp.SpecJSON), &dp.Specializations)
+	}
+	return nil
+}
+
+func (DoctorProfile) TableName() string {
+	return "doctor_profiles"
+}
+
+type BasicInfo struct {
+	FullName             string   `json:"fullName"`
+	Email                string   `json:"email"`
+	Phone                string   `json:"phone"`
+	MedicalLicenseNumber string   `json:"medicalLicenseNumber"`
+	YearOfRegistration   int      `json:"yearOfRegistration"`
+	Experience           int      `json:"experience"`
+	Specializations      []string `json:"specializations" gorm:"type:text[]"`
+	Languages            []string `json:"languages" gorm:"type:text[]"`
+	About                string   `json:"about"`
+}
+
+type Degree struct {
+	Name       string `json:"name"`
+	University string `json:"university"`
+	Year       int    `json:"year"`
+	Country    string `json:"country"`
+}
+
+type Certification struct {
+	Name                string `json:"name"`
+	IssuingBody         string `json:"issuingBody"`
+	Year                int    `json:"year"`
+	ExpiryYear          int    `json:"expiryYear"`
+	CertificationNumber string `json:"certificationNumber"`
+}
+
+type Qualifications struct {
+	Degrees        []Degree        `json:"degrees" gorm:"type:jsonb"`
+	Certifications []Certification `json:"certifications" gorm:"type:jsonb"`
+}
+
+type Affiliation struct {
+	Name         string `json:"name"`
+	Phone        string `json:"phone"`
+	Address      string `json:"address"`
+	City         string `json:"city"`
+	State        string `json:"state"`
+	Country      string `json:"country"`
+	Designation  string `json:"designation"`
+	WorkingHours string `json:"workingHours"`
+}
+
+type ConsultationType struct {
+	Enabled        bool    `json:"enabled"`
+	Fee            float64 `json:"fee"`
+	Duration       int     `json:"duration"`
+	FollowupFee    float64 `json:"followupFee"`
+	FollowupWindow int     `json:"followupWindow"`
+	Instructions   string  `json:"instructions,omitempty"`
+}
+
+type Emergency struct {
+	Available   bool    `json:"available"`
+	Fee         float64 `json:"fee"`
+	Hours       string  `json:"hours"`
+	CustomHours string  `json:"customHours"`
+}
+
+type PracticeDetails struct {
+	Affiliations      []Affiliation `json:"affiliations" gorm:"type:jsonb"`
+	ConsultationTypes struct {
+		Online   ConsultationType `json:"online"`
+		InPerson ConsultationType `json:"inPerson"`
+	} `json:"consultationTypes" gorm:"type:jsonb"`
+	Emergency Emergency `json:"emergency" gorm:"type:jsonb"`
+}
+
+type Procedure struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Duration    string `json:"duration"`
+	Cost        string `json:"cost"`
+}
+
+type Specialization struct {
+	Name           string      `json:"name"`
+	Subspecialty   string      `json:"subspecialty"`
+	Experience     int         `json:"experience"`
+	ExpertiseLevel string      `json:"expertiseLevel"`
+	Description    string      `json:"description"`
+	Certification  string      `json:"certification"`
+	ProfileLink    string      `json:"profileLink"`
+	Procedures     []Procedure `json:"procedures" gorm:"type:jsonb"`
+}
+
+type SpecInfo struct {
+	Specializations []Specialization `json:"specializations" gorm:"type:jsonb"`
+}

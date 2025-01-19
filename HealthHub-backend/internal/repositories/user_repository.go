@@ -81,3 +81,12 @@ func (r *UserRepository) VerifyUsers(ctx context.Context, userID1, userID2 uint)
 
 	return nil
 }
+
+func (ur *UserRepository) CheckUserRole(ctx context.Context, userID uint, role models.UserRole) (bool, error) {
+	var user models.User
+	err := ur.db.WithContext(ctx).Select("role").First(&user, userID).Error
+	if err != nil {
+		return false, err
+	}
+	return user.Role == role, nil
+}

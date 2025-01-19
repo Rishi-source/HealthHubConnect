@@ -101,3 +101,27 @@ func NewForbiddenError(message string) *CustomError {
 		StatusCode: http.StatusForbidden,
 	}
 }
+
+func NewNotFoundError(message string) *CustomError {
+	return &CustomError{
+		Message:    message,
+		StatusCode: http.StatusNotFound,
+		ErrorCode:  "NOT_FOUND",
+	}
+}
+
+func NewBadRequestError(message string) *CustomError {
+	return &CustomError{
+		Message:    message,
+		ErrorCode:  "BAD_REQUEST",
+		StatusCode: http.StatusBadRequest,
+	}
+}
+
+func NewConflictError(message string) *CustomError {
+	return &CustomError{
+		Message:    message,
+		ErrorCode:  "CONFLICT",
+		StatusCode: http.StatusConflict,
+	}
+}

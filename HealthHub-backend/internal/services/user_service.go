@@ -72,8 +72,6 @@ func (s *UserService) createUserCommon(ctx context.Context, name, email, passwor
 		return nil, err
 	}
 
-	s.sendVerificationEmail(user.Email, user.Name, resetOTP)
-
 	user.PasswordHash = ""
 	return user, nil
 }
@@ -89,10 +87,14 @@ func (s *UserService) CreateUserWithRole(ctx context.Context, name, email, passw
 func (s *UserService) validateLogin(ctx context.Context, email, password string) (*models.User, error) {
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
+		log.Printf("Login attempt failed: email not found: %s", email)
 		return nil, e.NewValidationError("invalid email or password")
 	}
 
+	// Add debug logging
+	log.Printf("Comparing passwords for user: %s", email)
 	if err := utils.ComparePassword(password, user.PasswordHash); err != nil {
+		log.Printf("Password comparison failed for user %s: %v", email, err)
 		return nil, e.NewValidationError("invalid email or password")
 	}
 
@@ -363,4 +365,35 @@ HealthHub Team`, user.Name, resetOTP)
 	}
 
 	return nil
+}
+
+// Add this new method
+func (s *UserService) SendVerificationEmail(user *models.User) error {
+	if user.EmailVerified {
+		return e.NewValidationError("email already verified")
+	}
+
+	resetOTP := utils.GenerateResetOTP()
+	user.ResetToken = resetOTP
+	user.ResetTokenExpiry = time.Now().Add(24 * time.Hour)
+
+	if err := s.userRepo.UpdateUser(user, context.Background()); err != nil {
+		return e.NewInternalError()
+	}
+
+	subject := "Doctor Account Verification - HealthHub"
+	body := fmt.Sprintf(`Dear Dr. %s,
+
+Thank you for registering with HealthHub! Please verify your email using the following OTP:
+
+%s
+
+This OTP will expire in 24 Hours.
+
+For security reasons, DO NOT share this OTP with anyone.
+
+Best regards,
+HealthHub Team`, user.Name, resetOTP)
+
+	return utils.SendEmail(user.Email, subject, body)
 }

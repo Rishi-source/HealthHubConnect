@@ -1,9 +1,12 @@
 package services
 
 import (
+	e "HealthHubConnect/internal/errors" // Add this import
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/repositories"
-	"errors"
+	"context"
+	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -15,80 +18,77 @@ type AppointmentService interface {
 	GetDoctorAppointments(doctorID uint) ([]models.Appointment, error)
 	SetDoctorAvailability(availability *models.DoctorAvailability) error
 	GetDoctorAvailability(doctorID uint) ([]models.DoctorAvailability, error)
+	GetAvailableSlots(doctorID uint, date time.Time) ([]models.TimeSlot, error)
+	ValidateAppointmentTime(doctorID uint, date time.Time, startTime time.Time) error
+	GetDoctorUpcomingAppointments(doctorID uint) ([]models.Appointment, error)
+	GetDoctorPastAppointments(doctorID uint) ([]models.Appointment, error)
+	GetPatientUpcomingAppointments(patientID uint) ([]models.Appointment, error)
+	GetPatientPastAppointments(patientID uint) ([]models.Appointment, error)
+	CancelAppointment(appointmentID uint, userID uint) error
+	GetDoctorTodayAppointments(doctorID uint) ([]models.Appointment, error)
+	GetDoctorWeekAppointments(doctorID uint) ([]models.Appointment, error)
+	RescheduleAppointment(appointmentID uint, userID uint, req *models.AppointmentRequest) error
 }
 
 type appointmentService struct {
 	appointmentRepo repositories.AppointmentRepository
+	userRepo        repositories.UserRepository
+	doctorRepo      *repositories.DoctorRepository // Change to concrete type
 }
 
-func NewAppointmentService(appointmentRepo repositories.AppointmentRepository) AppointmentService {
-	return &appointmentService{appointmentRepo: appointmentRepo}
+func NewAppointmentService(
+	appointmentRepo repositories.AppointmentRepository,
+	userRepo repositories.UserRepository,
+	doctorRepo *repositories.DoctorRepository, // Change to concrete type
+) AppointmentService {
+	return &appointmentService{
+		appointmentRepo: appointmentRepo,
+		userRepo:        userRepo,
+		doctorRepo:      doctorRepo,
+	}
 }
 
 func (s *appointmentService) CreateAppointment(appointment *models.Appointment) error {
-	now := time.Now().In(time.Local)
+	ctx := context.Background()
+	// Validate doctor existence and role
+	doctor, err := s.userRepo.FindByID(ctx, appointment.DoctorID)
+	if err != nil {
+		return e.NewNotFoundError("doctor not found")
+	}
+	if doctor.Role != models.RoleDoctor {
+		return e.NewForbiddenError("selected user is not a doctor")
+	}
 
-	// Create appointment date-time by combining date and time
-	appointmentDateTime := time.Date(
-		appointment.Date.Year(),
-		appointment.Date.Month(),
-		appointment.Date.Day(),
-		appointment.StartTime.Hour(),
-		appointment.StartTime.Minute(),
-		0, 0,
-		time.Local,
+	// Validate appointment times
+	now := time.Now()
+	if appointment.Date.Before(now.Truncate(24 * time.Hour)) {
+		return e.NewBadRequestError("cannot schedule appointments in the past")
+	}
+
+	if appointment.EndTime.Before(appointment.StartTime) {
+		return e.NewBadRequestError("end time must be after start time")
+	}
+
+	duration := appointment.EndTime.Sub(appointment.StartTime)
+	if duration < models.MinAppointmentDuration || duration > models.MaxAppointmentDuration {
+		return e.NewBadRequestError("appointment duration must be between 15 and 120 minutes")
+	}
+
+	// Check for conflicting appointments
+	existing, err := s.appointmentRepo.GetConflictingAppointments(
+		appointment.DoctorID,
+		appointment.Date,
+		appointment.StartTime,
+		appointment.EndTime,
 	)
-
-	// Calculate minimum allowed appointment time (15 minutes from now)
-	minAllowedTime := now.Add(15 * time.Minute)
-
-	if appointmentDateTime.Before(minAllowedTime) {
-		return errors.New("appointment must be scheduled at least 15 minutes in advance")
-	}
-
-	// Create end date-time
-	endDateTime := time.Date(
-		appointment.Date.Year(),
-		appointment.Date.Month(),
-		appointment.Date.Day(),
-		appointment.EndTime.Hour(),
-		appointment.EndTime.Minute(),
-		0, 0,
-		time.Local,
-	)
-
-	if endDateTime.Before(appointmentDateTime) {
-		return errors.New("end time cannot be before start time")
-	}
-
-	if appointment.Type != models.TypeOnline && appointment.Type != models.TypeOffline {
-		return errors.New("invalid appointment type")
-	}
-
-	// Rest of the availability check logic remains the same
-	availability, err := s.appointmentRepo.GetDoctorAvailability(appointment.DoctorID)
 	if err != nil {
 		return err
 	}
-
-	isAvailable := false
-	for _, slot := range availability {
-		if slot.Date.Equal(appointment.Date) &&
-			!slot.StartTime.After(appointmentDateTime) &&
-			!slot.EndTime.Before(endDateTime) {
-			isAvailable = true
-			break
-		}
+	if len(existing) > 0 {
+		return e.NewDuplicateResourceError("time slot already booked")
 	}
 
-	if !isAvailable {
-		return errors.New("selected time slot is not available")
-	}
-
-	// Update the appointment with normalized times
-	appointment.StartTime = appointmentDateTime
-	appointment.EndTime = endDateTime
-
+	appointment.Status = models.StatusPending
 	return s.appointmentRepo.CreateAppointment(appointment)
 }
 
@@ -120,4 +120,168 @@ func (s *appointmentService) SetDoctorAvailability(availability *models.DoctorAv
 
 func (s *appointmentService) GetDoctorAvailability(doctorID uint) ([]models.DoctorAvailability, error) {
 	return s.appointmentRepo.GetDoctorAvailability(doctorID)
+}
+
+func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([]models.TimeSlot, error) {
+	// Get doctor's schedule
+	schedule, err := s.doctorRepo.GetSchedule(context.Background(), doctorID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse schedule JSON
+	var parsedSchedule models.Schedule
+	if err := json.Unmarshal([]byte(schedule.Schedule), &parsedSchedule); err != nil {
+		var rawSchedule string
+		if err := json.Unmarshal([]byte(schedule.Schedule), &rawSchedule); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(rawSchedule), &parsedSchedule); err != nil {
+			return nil, err
+		}
+	}
+
+	// Get day schedule
+	dayOfWeek := strings.ToLower(date.Weekday().String())
+	daySchedule, exists := parsedSchedule.Days[dayOfWeek]
+	if !exists || !daySchedule.Enabled {
+		return nil, e.NewNotFoundError("no slots available for this day")
+	}
+
+	// Get existing appointments
+	existingAppointments, err := s.appointmentRepo.GetAppointmentsByDoctorAndDate(doctorID, date)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the loop to handle ScheduleTimeSlot
+	var availableSlots []models.TimeSlot
+	for _, scheduleSlot := range daySchedule.Slots {
+		startTime, _ := time.Parse("15:04", scheduleSlot.Start)
+		endTime, _ := time.Parse("15:04", scheduleSlot.End)
+
+		slot := models.TimeSlot{
+			StartTime: startTime,
+			EndTime:   endTime,
+			Available: true,
+		}
+
+		if isSlotAvailable(slot, existingAppointments) {
+			availableSlots = append(availableSlots, slot)
+		}
+	}
+
+	return availableSlots, nil
+}
+
+// Update helper function signature if needed
+func isSlotAvailable(slot models.TimeSlot, appointments []models.Appointment) bool {
+	for _, apt := range appointments {
+		if (slot.StartTime.Before(apt.EndTime) || slot.StartTime.Equal(apt.EndTime)) &&
+			(slot.EndTime.After(apt.StartTime) || slot.EndTime.Equal(apt.StartTime)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *appointmentService) ValidateAppointmentTime(doctorID uint, date time.Time, startTime time.Time) error {
+	_, err := s.doctorRepo.GetSchedule(context.Background(), doctorID)
+	if err != nil {
+		return err
+	}
+
+	// Parse and validate against doctor's schedule
+	// Add implementation here
+
+	return nil
+}
+
+func (s *appointmentService) GetDoctorUpcomingAppointments(doctorID uint) ([]models.Appointment, error) {
+	return s.appointmentRepo.GetUpcomingAppointments(doctorID)
+}
+
+func (s *appointmentService) GetDoctorPastAppointments(doctorID uint) ([]models.Appointment, error) {
+	return s.appointmentRepo.GetPastAppointments(doctorID)
+}
+
+func (s *appointmentService) GetPatientUpcomingAppointments(patientID uint) ([]models.Appointment, error) {
+	return s.appointmentRepo.GetUpcomingAppointments(patientID)
+}
+
+func (s *appointmentService) GetPatientPastAppointments(patientID uint) ([]models.Appointment, error) {
+	return s.appointmentRepo.GetPastAppointments(patientID)
+}
+
+func (s *appointmentService) CancelAppointment(appointmentID uint, userID uint) error {
+	appointment, err := s.appointmentRepo.GetAppointmentByID(appointmentID)
+	if err != nil {
+		return err
+	}
+
+	if appointment.PatientID != userID && appointment.DoctorID != userID {
+		return e.NewForbiddenError("not authorized to cancel this appointment")
+	}
+
+	now := time.Now()
+	appointment.Status = models.StatusCancelled
+	appointment.IsCancelled = true
+	appointment.CancelledAt = &now
+	appointment.CancelledBy = &userID
+
+	return s.appointmentRepo.UpdateAppointment(appointment)
+}
+
+func (s *appointmentService) GetDoctorTodayAppointments(doctorID uint) ([]models.Appointment, error) {
+	today := time.Now().Truncate(24 * time.Hour)
+	tomorrow := today.Add(24 * time.Hour)
+
+	appointments, err := s.appointmentRepo.GetAppointmentsByDoctorAndDateRange(
+		doctorID,
+		today,
+		tomorrow,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return appointments, nil
+}
+
+func (s *appointmentService) GetDoctorWeekAppointments(doctorID uint) ([]models.Appointment, error) {
+	now := time.Now()
+	weekStart := now.Truncate(24 * time.Hour)
+	weekEnd := weekStart.Add(7 * 24 * time.Hour)
+
+	appointments, err := s.appointmentRepo.GetAppointmentsByDoctorAndDateRange(
+		doctorID,
+		weekStart,
+		weekEnd,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return appointments, nil
+}
+
+func (s *appointmentService) RescheduleAppointment(appointmentID uint, userID uint, req *models.AppointmentRequest) error {
+	appointment, err := s.appointmentRepo.GetAppointmentByID(appointmentID)
+	if err != nil {
+		return err
+	}
+
+	if appointment.PatientID != userID && appointment.DoctorID != userID {
+		return e.NewForbiddenError("not authorized to reschedule this appointment")
+	}
+
+	newAppointment, err := req.ToAppointment(appointment.PatientID)
+	if err != nil {
+		return err
+	}
+
+	newAppointment.ID = appointmentID
+	newAppointment.Status = models.StatusPending
+
+	return s.appointmentRepo.UpdateAppointment(newAppointment)
 }

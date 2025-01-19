@@ -18,63 +18,48 @@ import (
 type AppointmentHandler struct {
 	appointmentService services.AppointmentService
 	userRepository     *repositories.UserRepository
+	doctorRepository   *repositories.DoctorRepository
 }
 
-func NewAppointmentHandler(appointmentService services.AppointmentService, userRepo *repositories.UserRepository) *AppointmentHandler {
+func NewAppointmentHandler(
+	appointmentService services.AppointmentService,
+	userRepo *repositories.UserRepository,
+	doctorRepo *repositories.DoctorRepository,
+) *AppointmentHandler {
 	return &AppointmentHandler{
 		appointmentService: appointmentService,
 		userRepository:     userRepo,
+		doctorRepository:   doctorRepo,
 	}
 }
 
 func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
 	var req models.AppointmentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := ParseRequestBody(w, r, &req); err != nil {
+		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	// Parse date and time strings
-	date, err := time.Parse("2006-01-02", req.Date)
+	userID, err := utils.GetUserIDFromContext(r.Context())
 	if err != nil {
-		http.Error(w, "Invalid date format. Use YYYY-MM-DD", http.StatusBadRequest)
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError(err.Error()))
 		return
 	}
 
-	startTime, err := time.Parse("15:04:05", req.StartTime)
+	// Parse and validate date/time
+	appointment, err := req.ToAppointment(userID)
 	if err != nil {
-		http.Error(w, "Invalid start time format. Use HH:mm:ss", http.StatusBadRequest)
+		// Fix: Use NewValidationError instead of NewBadRequestError
+		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
 		return
 	}
-
-	endTime, err := time.Parse("15:04:05", req.EndTime)
-	if err != nil {
-		http.Error(w, "Invalid end time format. Use HH:mm:ss", http.StatusBadRequest)
-		return
-	}
-
-	appointment := &models.Appointment{
-		DoctorID:    req.DoctorID,
-		Type:        req.Type,
-		Date:        date,
-		StartTime:   startTime,
-		EndTime:     endTime,
-		Description: req.Description,
-		Address:     req.Address,
-		Latitude:    req.Latitude,
-		Longitude:   req.Longitude,
-	}
-
-	claims := r.Context().Value("claims").(*utils.Claims)
-	appointment.PatientID = claims.UserID
 
 	if err := h.appointmentService.CreateAppointment(appointment); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(appointment)
+	GenerateResponse(&w, http.StatusCreated, appointment)
 }
 
 func (h *AppointmentHandler) UpdateAppointmentStatus(w http.ResponseWriter, r *http.Request) {
@@ -196,4 +181,277 @@ func (h *AppointmentHandler) GetDoctorAvailability(w http.ResponseWriter, r *htt
 	}
 
 	json.NewEncoder(w).Encode(availability)
+}
+
+func (h *AppointmentHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	doctorID, err := strconv.ParseUint(vars["doctorId"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid doctor ID"))
+		return
+	}
+
+	dateStr := r.URL.Query().Get("date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid date format"))
+		return
+	}
+
+	slots, err := h.appointmentService.GetAvailableSlots(uint(doctorID), date)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, slots)
+}
+
+func (h *AppointmentHandler) GetUpcomingAppointments(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	// Validate doctor access
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	appointments, err := h.appointmentService.GetDoctorUpcomingAppointments(userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, appointments)
+}
+
+func (h *AppointmentHandler) GetPastAppointments(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	// Validate doctor access
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	appointments, err := h.appointmentService.GetDoctorPastAppointments(userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, appointments)
+}
+
+func (h *AppointmentHandler) GetMyUpcomingAppointments(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	appointments, err := h.appointmentService.GetPatientUpcomingAppointments(userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, appointments)
+}
+
+func (h *AppointmentHandler) GetMyPastAppointments(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	appointments, err := h.appointmentService.GetPatientPastAppointments(userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, appointments)
+}
+
+func (h *AppointmentHandler) CancelAppointment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.appointmentService.CancelAppointment(uint(id), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment cancelled successfully"})
+}
+
+func (h *AppointmentHandler) GetTodayAppointments(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	appointments, err := h.appointmentService.GetDoctorTodayAppointments(userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, appointments)
+}
+
+func (h *AppointmentHandler) GetWeekAppointments(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	appointments, err := h.appointmentService.GetDoctorWeekAppointments(userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, appointments)
+}
+
+func (h *AppointmentHandler) ConfirmAppointment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.appointmentService.UpdateAppointmentStatus(uint(id), models.StatusConfirmed); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment confirmed"})
+}
+
+func (h *AppointmentHandler) CompleteAppointment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.appointmentService.UpdateAppointmentStatus(uint(id), models.StatusCompleted); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment completed"})
+}
+
+func (h *AppointmentHandler) RescheduleAppointment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	var req models.AppointmentRequest
+	if err := ParseRequestBody(w, r, &req); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.appointmentService.RescheduleAppointment(uint(id), userID, &req); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment rescheduled successfully"})
+}
+
+func (h *AppointmentHandler) MarkNoShow(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.appointmentService.UpdateAppointmentStatus(uint(id), models.StatusNoShow); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment marked as no-show"})
 }

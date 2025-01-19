@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"log"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -28,12 +30,13 @@ var (
 // HashPassword creates a bcrypt hash of a password
 func HashPassword(password string) (string, error) {
 	if password == "" {
-		return "", ErrEmptyData
+		return "", fmt.Errorf("password cannot be empty")
 	}
 
-	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), defaultBcryptCost)
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", ErrHashFailed
+		log.Printf("Error hashing password: %v", err)
+		return "", err
 	}
 
 	return string(hashedBytes), nil
@@ -41,18 +44,17 @@ func HashPassword(password string) (string, error) {
 
 // ComparePassword compares a password with a hash
 func ComparePassword(password, hash string) error {
+	// Add debug logging
 	if password == "" || hash == "" {
-		return ErrEmptyData
+		log.Printf("Empty password or hash received: pwd_len=%d, hash_len=%d", len(password), len(hash))
+		return fmt.Errorf("invalid password or hash")
 	}
 
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	if err != nil {
-		if err == bcrypt.ErrMismatchedHashAndPassword {
-			return ErrInvalidHash
-		}
-		return ErrComparisonFailed
+		log.Printf("Password comparison error: %v", err)
+		return err
 	}
-
 	return nil
 }
 

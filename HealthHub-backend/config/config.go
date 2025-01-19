@@ -47,10 +47,11 @@ type MailConfig struct {
 }
 
 type CorsConfig struct {
-	AllowedOrigins []string
-	AllowedMethods []string
-	AllowedHeaders []string
-	MaxAge         int
+	AllowedOrigins   []string
+	AllowedMethods   []string
+	AllowedHeaders   []string
+	MaxAge           int
+	AllowCredentials bool
 }
 
 type GoogleMapsConfig struct {

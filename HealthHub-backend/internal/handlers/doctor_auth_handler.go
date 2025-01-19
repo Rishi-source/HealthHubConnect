@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"HealthHubConnect/internal/models"
@@ -36,27 +37,60 @@ func (h *DoctorHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Send verification email explicitly
+	if err := h.userService.SendVerificationEmail(user); err != nil {
+		log.Printf("Failed to send verification email: %v", err)
+	}
+
 	GenerateResponse(&w, http.StatusCreated, map[string]interface{}{
-		"user": user,
+		"user":    user,
+		"message": "Please check your email for verification code",
 	})
 }
 
 func (h *DoctorHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := ParseRequestBody(w, r, &req); err != nil {
+		log.Printf("Error parsing login request: %v", err)
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	log.Printf("Login attempt for email: %s", req.Email)
+
+	ctx := r.Context()
+	user, tokens, err := h.userService.LoginWithRole(ctx, req.Email, req.Password, models.RoleDoctor)
+	if err != nil {
+		log.Printf("Login failed for email %s: %v", req.Email, err)
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	log.Printf("Login successful for email: %s", req.Email)
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"user":   user,
+		"tokens": tokens,
+	})
+}
+
+type ResendOTPRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+func (h *DoctorHandler) ResendOTP(w http.ResponseWriter, r *http.Request) {
+	var req ResendOTPRequest
+	if err := ParseRequestBody(w, r, &req); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
 	ctx := r.Context()
-	user, tokens, err := h.userService.LoginWithRole(ctx, req.Email, req.Password, models.RoleDoctor)
-	if err != nil {
+	if err := h.userService.ResendOTP(ctx, req.Email); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
 	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
-		"user":   user,
-		"tokens": tokens,
+		"message": "Verification code has been resent to your email",
 	})
 }
