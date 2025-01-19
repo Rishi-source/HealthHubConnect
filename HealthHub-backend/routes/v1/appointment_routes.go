@@ -32,6 +32,8 @@ func RegisterAppointmentRoutes(router *mux.Router, db *gorm.DB) {
 	// General appointment routes
 	p.HandleFunc("", appointmentHandler.CreateAppointment).Methods("POST")
 	p.HandleFunc("/{id}", appointmentHandler.GetAppointment).Methods("GET")
+	p.HandleFunc("/{id}/status", appointmentHandler.GetAppointmentStatus).Methods("GET")
+	//doctor
 	p.HandleFunc("/{id}/status", appointmentHandler.UpdateAppointmentStatus).Methods("PUT")
 
 	// Patient-specific routes
@@ -40,9 +42,11 @@ func RegisterAppointmentRoutes(router *mux.Router, db *gorm.DB) {
 	p.HandleFunc("/{id}/cancel", appointmentHandler.CancelAppointment).Methods("PUT")
 
 	// Doctor availability and slots
-	p.HandleFunc("/doctor/{doctorId}/slots", appointmentHandler.GetAvailableSlots).Methods("GET")
-	p.HandleFunc("/doctor/availability", appointmentHandler.SetDoctorAvailability).Methods("POST")
-	p.HandleFunc("/doctor/{doctorId}/availability", appointmentHandler.GetDoctorAvailability).Methods("GET")
+	p.HandleFunc("/doctor/{doctorId}/slots", appointmentHandler.GetAvailableSlots).
+		Methods("GET").
+		Queries("date", "{date}")
+	// p.HandleFunc("/doctor/availability", appointmentHandler.SetDoctorAvailability).Methods("POST")
+	// p.HandleFunc("/doctor/{doctorId}/availability", appointmentHandler.GetDoctorAvailability).Methods("GET")
 
 	// Doctor appointment management
 	p.HandleFunc("/doctor/upcoming", appointmentHandler.GetUpcomingAppointments).Methods("GET")

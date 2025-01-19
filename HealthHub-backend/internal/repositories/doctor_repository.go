@@ -4,6 +4,9 @@ import (
 	"HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
 	"context"
+	"fmt"
+	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,16 +37,37 @@ func (r *DoctorRepository) SaveProfile(ctx context.Context, profile *models.Doct
 	if err := r.ValidateDoctorAccess(ctx, profile.UserID); err != nil {
 		return err
 	}
-	return r.db.WithContext(ctx).Save(profile).Error
+
+	// Using transaction to handle the upsert properly
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing models.DoctorProfile
+		err := tx.Where("user_id = ?", profile.UserID).First(&existing).Error
+
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				// Create new profile
+				return tx.Create(profile).Error
+			}
+			return err
+		}
+
+		// Update existing profile
+		profile.ID = existing.ID
+		return tx.Save(profile).Error
+	})
 }
 
 func (r *DoctorRepository) GetProfile(ctx context.Context, userID uint) (*models.DoctorProfile, error) {
-	if err := r.ValidateDoctorAccess(ctx, userID); err != nil {
-		return nil, err
-	}
-
 	var profile models.DoctorProfile
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&profile).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN users ON users.id = doctor_profiles.user_id").
+		Where("doctor_profiles.user_id = ? AND users.role = ?", userID, models.RoleDoctor).
+		Preload("User", func(db *gorm.DB) *gorm.DB {
+			// Only select necessary user fields
+			return db.Select("id, name, profile_picture")
+		}).
+		First(&profile).Error
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.NewNotFoundError("doctor profile not found")
@@ -109,4 +133,73 @@ func (r *DoctorRepository) GetSchedule(ctx context.Context, doctorID uint) (*mod
 	}
 
 	return &schedule, nil
+}
+
+func (r *DoctorRepository) SaveBulkAvailability(ctx context.Context, availabilities []models.DoctorAvailability) error {
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("doctor_id = ? AND date >= ?",
+			availabilities[0].DoctorID,
+			time.Now().Format("2006-01-02")).
+			Delete(&models.DoctorAvailability{}).Error; err != nil {
+			return err
+		}
+
+		return tx.CreateInBatches(availabilities, 100).Error
+	})
+}
+
+func (r *DoctorRepository) GetLastAvailabilityDate(ctx context.Context, doctorID uint, lastAvailability *models.DoctorAvailability) error {
+	return r.db.WithContext(ctx).
+		Where("doctor_id = ?", doctorID).
+		Order("date DESC").
+		First(lastAvailability).Error
+}
+
+func (r *DoctorRepository) AddBulkAvailability(ctx context.Context, availabilities []models.DoctorAvailability) error {
+	return r.db.WithContext(ctx).CreateInBatches(availabilities, 100).Error
+}
+
+func (r *DoctorRepository) ListDoctors(ctx context.Context, filters map[string]interface{}, page, limit int) ([]models.DoctorProfile, int64, error) {
+	var profiles []models.DoctorProfile
+	var total int64
+
+	query := r.db.WithContext(ctx).
+		Model(&models.DoctorProfile{}).
+		Joins("JOIN users ON users.id = doctor_profiles.user_id").
+		Where("users.role = ?", models.RoleDoctor).
+		Preload("User", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, name, profile_picture")
+		})
+
+	if specialization, ok := filters["specialization"].(string); ok && specialization != "" {
+		query = query.Where("basic_info_json->>'specializations' @> ?", fmt.Sprintf("[\"%s\"]", specialization))
+	}
+	if name, ok := filters["name"].(string); ok && name != "" {
+		query = query.Where("users.name ILIKE ?", "%"+name+"%")
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&profiles).Error
+
+	if err != nil {
+		log.Printf("Error fetching doctors: %v", err)
+		return nil, 0, err
+	}
+
+	log.Printf("Found %d doctors", len(profiles))
+	return profiles, total, nil
+}
+
+func (r *DoctorRepository) DeleteAvailabilitySlots(ctx context.Context, doctorID uint, date time.Time, startTime time.Time, endTime time.Time) error {
+	return r.db.WithContext(ctx).
+		Where("doctor_id = ? AND date = ? AND start_time >= ? AND end_time <= ?",
+			doctorID, date, startTime, endTime).
+		Delete(&models.DoctorAvailability{}).Error
 }

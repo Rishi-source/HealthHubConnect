@@ -71,7 +71,19 @@ func (h *AppointmentHandler) UpdateAppointmentStatus(w http.ResponseWriter, r *h
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 32)
 	if err != nil {
-		http.Error(w, "Invalid appointment ID", http.StatusBadRequest)
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	// Validate doctor access
+	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
+		GenerateErrorResponse(&w, err)
 		return
 	}
 
@@ -79,16 +91,53 @@ func (h *AppointmentHandler) UpdateAppointmentStatus(w http.ResponseWriter, r *h
 		Status models.AppointmentStatus `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&status); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
 		return
 	}
 
 	if err := h.appointmentService.UpdateAppointmentStatus(uint(id), status.Status); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"message": "Appointment status updated successfully",
+	})
+}
+
+func (h *AppointmentHandler) GetAppointmentStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	appointment, err := h.appointmentService.GetAppointmentByID(uint(id))
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	// Check if the user has access to this appointment
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if appointment.PatientID != userID {
+		// If not patient, check if doctor
+		if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil || appointment.DoctorID != userID {
+			GenerateErrorResponse(&w, e.NewForbiddenError("not authorized to view this appointment"))
+			return
+		}
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"id":     appointment.ID,
+		"status": appointment.Status,
+	})
 }
 
 func (h *AppointmentHandler) GetAppointment(w http.ResponseWriter, r *http.Request) {
@@ -109,14 +158,12 @@ func (h *AppointmentHandler) GetAppointment(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AppointmentHandler) GetMyAppointments(w http.ResponseWriter, r *http.Request) {
-	// Use the same method as other handlers to get userID
 	userID := r.Context().Value("userID")
 	if userID == nil {
 		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
 		return
 	}
 
-	// Convert userID to uint based on type
 	var uid uint
 	switch v := userID.(type) {
 	case float64:
@@ -203,10 +250,27 @@ func (h *AppointmentHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), uint(doctorID)); err != nil {
+	// 	GenerateErrorResponse(&w, e.NewNotFoundError("doctor not found"))
+	// 	return
+	// }
+
 	dateStr := r.URL.Query().Get("date")
+	if dateStr == "" {
+		GenerateErrorResponse(&w, e.NewBadRequestError("date parameter is required"))
+		return
+	}
+
+	// Parse date with better error handling
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		GenerateErrorResponse(&w, e.NewBadRequestError("invalid date format"))
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid date format. Use YYYY-MM-DD"))
+		return
+	}
+
+	// Validate date is not in the past
+	if date.Before(time.Now().Truncate(24 * time.Hour)) {
+		GenerateErrorResponse(&w, e.NewBadRequestError("cannot fetch slots for past dates"))
 		return
 	}
 
@@ -216,7 +280,11 @@ func (h *AppointmentHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	GenerateResponse(&w, http.StatusOK, slots)
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"slots": slots,
+		"date":  dateStr,
+		"count": len(slots),
+	})
 }
 
 func (h *AppointmentHandler) GetUpcomingAppointments(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +344,12 @@ func (h *AppointmentHandler) GetMyUpcomingAppointments(w http.ResponseWriter, r 
 		return
 	}
 
-	GenerateResponse(&w, http.StatusOK, appointments)
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"appointments": appointments,
+		"count":        len(appointments),
+		"message":      "Upcoming appointments retrieved successfully",
+		"user_id":      userID, // Add this for debugging
+	})
 }
 
 func (h *AppointmentHandler) GetMyPastAppointments(w http.ResponseWriter, r *http.Request) {

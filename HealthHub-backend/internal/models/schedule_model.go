@@ -1,8 +1,11 @@
 package models
 
-import "time"
+import (
+	"time"
 
-// Rename TimeSlot to ScheduleTimeSlot
+	"gorm.io/gorm"
+)
+
 type ScheduleTimeSlot struct {
 	Start    string `json:"start"`
 	End      string `json:"end"`
@@ -23,7 +26,7 @@ type DaySchedule struct {
 		Start string `json:"start"`
 		End   string `json:"end"`
 	} `json:"workingHours"`
-	Slots  []ScheduleTimeSlot `json:"slots"` // Updated reference
+	Slots  []ScheduleTimeSlot `json:"slots"`
 	Breaks []Break            `json:"breaks"`
 }
 
@@ -74,4 +77,24 @@ type ScheduleResponse struct {
 	Schedule  Schedule  `json:"schedule"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// type BlockSlotRequest struct {
+// 	Date         string `json:"date" validate:"required"`       // Format: "2006-01-02"
+// 	StartTime    string `json:"start_time" validate:"required"` // Format: "15:04"
+// 	EndTime      string `json:"end_time" validate:"required"`   // Format: "15:04"
+// 	Reason       string `json:"reason"`
+// 	IsRecurring  bool   `json:"is_recurring"`
+// 	RecurringDay string `json:"recurring_day,omitempty"` // e.g., "monday", "tuesday"
+// }
+
+type BlockedSlot struct {
+	gorm.Model
+	DoctorID     uint      `json:"doctor_id" gorm:"not null"`
+	Date         time.Time `json:"date" gorm:"not null"`
+	StartTime    time.Time `json:"start_time" gorm:"not null"`
+	EndTime      time.Time `json:"end_time" gorm:"not null"`
+	Reason       string    `json:"reason"`
+	IsRecurring  bool      `json:"is_recurring"`
+	RecurringDay string    `json:"recurring_day,omitempty"`
 }

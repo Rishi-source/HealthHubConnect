@@ -22,8 +22,13 @@ func RegisterDoctorRoutes(router *mux.Router, db *gorm.DB) {
 	router.HandleFunc("/doctor/resend-otp", doctorHandler.ResendOTP).Methods("POST")
 
 	doctorRepo := repositories.NewDoctorRepository(db)
-	doctorService := services.NewDoctorService(doctorRepo)
+	appointmentRepo := repositories.NewAppointmentRepository(db)
+	doctorService := services.NewDoctorService(doctorRepo, appointmentRepo)
 	doctorProfileHandler := handlers.NewDoctorProfileHandler(doctorService)
+
+	// Public routes for listing doctors so that user can make appoitments
+	router.HandleFunc("/doctors", doctorProfileHandler.ListDoctors).Methods("GET")
+	router.HandleFunc("/doctors/{id}", doctorProfileHandler.GetDoctorPublicProfile).Methods("GET")
 
 	protected := router.PathPrefix("/doctor").Subrouter()
 	protected.Use(middleware.AuthMiddleware)
@@ -35,4 +40,6 @@ func RegisterDoctorRoutes(router *mux.Router, db *gorm.DB) {
 
 	protected.HandleFunc("/schedule", doctorProfileHandler.SaveSchedule).Methods("POST")
 	protected.HandleFunc("/schedule", doctorProfileHandler.GetSchedule).Methods("GET")
+	protected.HandleFunc("/schedule/extend", doctorProfileHandler.ExtendAvailability).Methods("POST")
+	protected.HandleFunc("/schedule/block", doctorProfileHandler.BlockSlot).Methods("POST")
 }

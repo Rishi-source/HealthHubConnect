@@ -7,8 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type AppointmentService interface {
@@ -147,10 +150,12 @@ func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([
 	// Get doctor's schedule
 	schedule, err := s.doctorRepo.GetSchedule(context.Background(), doctorID)
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return []models.TimeSlot{}, e.NewNotFoundError("doctor schedule not found")
+		}
+		return nil, fmt.Errorf("error getting doctor schedule: %v", err)
 	}
 
-	// Parse schedule JSON
 	var parsedSchedule models.Schedule
 	if err := json.Unmarshal([]byte(schedule.Schedule), &parsedSchedule); err != nil {
 		var rawSchedule string
@@ -165,7 +170,7 @@ func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([
 	dayOfWeek := strings.ToLower(date.Weekday().String())
 	daySchedule, exists := parsedSchedule.Days[dayOfWeek]
 	if !exists || !daySchedule.Enabled {
-		return nil, e.NewNotFoundError("no slots available for this day")
+		return []models.TimeSlot{}, e.NewNotFoundError("no slots available for this day")
 	}
 
 	existingAppointments, err := s.appointmentRepo.GetAppointmentsByDoctorAndDate(doctorID, date)
@@ -216,7 +221,7 @@ func (s *appointmentService) ValidateAppointmentTime(doctorID uint, date time.Ti
 }
 
 func (s *appointmentService) GetDoctorUpcomingAppointments(doctorID uint) ([]models.Appointment, error) {
-	return s.appointmentRepo.GetUpcomingAppointments(doctorID)
+	return s.appointmentRepo.GetDoctorUpcomingAppointments(doctorID)
 }
 
 func (s *appointmentService) GetDoctorPastAppointments(doctorID uint) ([]models.Appointment, error) {
@@ -224,7 +229,12 @@ func (s *appointmentService) GetDoctorPastAppointments(doctorID uint) ([]models.
 }
 
 func (s *appointmentService) GetPatientUpcomingAppointments(patientID uint) ([]models.Appointment, error) {
-	return s.appointmentRepo.GetUpcomingAppointments(patientID)
+	appointments, err := s.appointmentRepo.GetPatientUpcomingAppointments(patientID)
+	if err != nil {
+		log.Printf("Error in service layer: %v", err)
+		return nil, e.NewInternalError()
+	}
+	return appointments, nil
 }
 
 func (s *appointmentService) GetPatientPastAppointments(patientID uint) ([]models.Appointment, error) {

@@ -11,7 +11,6 @@ func (r *AppointmentRequest) ToAppointment(patientID uint) (*Appointment, error)
 		return nil, fmt.Errorf("invalid date format: use YYYY-MM-DD")
 	}
 
-	// Parse time strings
 	startTimeStr := fmt.Sprintf("%s %s", r.Date, r.StartTime)
 	endTimeStr := fmt.Sprintf("%s %s", r.Date, r.EndTime)
 

@@ -8,16 +8,26 @@ import (
 
 type DoctorProfile struct {
 	gorm.Model
-	UserID          uint            `json:"userId"`
-	User            User            `json:"-"`
-	BasicInfoJSON   string          `json:"-" gorm:"column:basic_info"`
+	UserID          uint            `json:"userId" gorm:"uniqueIndex:idx_user_id;not null"`
+	User            *DoctorUserInfo `json:"user" gorm:"foreignKey:UserID"`
+	BasicInfoJSON   string          `json:"-" gorm:"column:basic_info_json"`
 	BasicInfo       BasicInfo       `json:"basicInfo" gorm:"-"`
-	QualJSON        string          `json:"-" gorm:"column:qualifications"`
+	QualJSON        string          `json:"-" gorm:"column:qual_json"`
 	Qualifications  Qualifications  `json:"qualifications" gorm:"-"`
-	PracticeJSON    string          `json:"-" gorm:"column:practice_details"`
+	PracticeJSON    string          `json:"-" gorm:"column:practice_json"`
 	PracticeDetails PracticeDetails `json:"practiceDetails" gorm:"-"`
-	SpecJSON        string          `json:"-" gorm:"column:specializations"`
+	SpecJSON        string          `json:"-" gorm:"column:spec_json"`
 	Specializations SpecInfo        `json:"specializations" gorm:"-"`
+}
+
+type DoctorUserInfo struct {
+	ID             uint   `json:"id"`
+	Name           string `json:"name"`
+	ProfilePicture string `json:"profile_picture"`
+}
+
+func (DoctorUserInfo) TableName() string {
+	return "users"
 }
 
 func (dp *DoctorProfile) BeforeSave(tx *gorm.DB) error {
@@ -144,4 +154,11 @@ type Specialization struct {
 
 type SpecInfo struct {
 	Specializations []Specialization `json:"specializations" gorm:"type:jsonb"`
+}
+
+type BlockSlotRequest struct {
+	Date      string `json:"date" validate:"required"`
+	StartTime string `json:"start_time" validate:"required"`
+	EndTime   string `json:"end_time" validate:"required"`
+	Reason    string `json:"reason,omitempty"`
 }

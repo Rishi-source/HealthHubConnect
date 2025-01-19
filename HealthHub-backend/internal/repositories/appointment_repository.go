@@ -21,6 +21,8 @@ type AppointmentRepository interface {
 	GetUpcomingAppointments(doctorID uint) ([]models.Appointment, error)
 	GetPastAppointments(doctorID uint) ([]models.Appointment, error)
 	GetAppointmentsByDoctorAndDateRange(doctorID uint, start time.Time, end time.Time) ([]models.Appointment, error)
+	GetPatientUpcomingAppointments(patientID uint) ([]models.Appointment, error)
+	GetDoctorUpcomingAppointments(doctorID uint) ([]models.Appointment, error)
 }
 
 type appointmentRepository struct {
@@ -128,4 +130,60 @@ func (r *appointmentRepository) GetAppointmentsByDoctorAndDateRange(doctorID uin
 		Order("date asc, start_time asc").
 		Find(&appointments).Error
 	return appointments, err
+}
+
+func (r *appointmentRepository) GetPatientUpcomingAppointments(patientID uint) ([]models.Appointment, error) {
+	var appointments []models.Appointment
+	now := time.Now()
+
+	result := r.db.Debug().
+		Preload("Doctor").
+		Preload("Patient").
+		Where("patient_id = ?", patientID).
+		Where("date >= ? OR (date = ? AND start_time > ?)",
+			now.Format("2006-01-02"),
+			now.Format("2006-01-02"),
+			now.Format("15:04:05")).
+		Where("status NOT IN ?",
+			[]models.AppointmentStatus{
+				models.StatusCancelled,
+				models.StatusCompleted,
+				models.StatusNoShow,
+			}).
+		Order("date ASC, start_time ASC").
+		Find(&appointments)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return appointments, nil
+}
+
+func (r *appointmentRepository) GetDoctorUpcomingAppointments(doctorID uint) ([]models.Appointment, error) {
+	var appointments []models.Appointment
+	now := time.Now()
+
+	result := r.db.Debug().
+		Preload("Doctor").
+		Preload("Patient").
+		Where("doctor_id = ?", doctorID).
+		Where("date >= ? OR (date = ? AND start_time > ?)",
+			now.Format("2006-01-02"),
+			now.Format("2006-01-02"),
+			now.Format("15:04:05")).
+		Where("status NOT IN ?",
+			[]models.AppointmentStatus{
+				models.StatusCancelled,
+				models.StatusCompleted,
+				models.StatusNoShow,
+			}).
+		Order("date ASC, start_time ASC").
+		Find(&appointments)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return appointments, nil
 }

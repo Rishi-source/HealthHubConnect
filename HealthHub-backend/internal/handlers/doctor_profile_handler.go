@@ -4,7 +4,12 @@ import (
 	e "HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/services"
+	"fmt"
 	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type DoctorProfileHandler struct {
@@ -16,7 +21,7 @@ func NewDoctorProfileHandler(doctorService *services.DoctorService) *DoctorProfi
 }
 
 func (h *DoctorProfileHandler) SaveProfile(w http.ResponseWriter, r *http.Request) {
-	// Safely get userID from context with type assertion
+
 	userIDInterface := r.Context().Value("userID")
 	if userIDInterface == nil {
 		err := e.NewNotAuthorizedError("user ID not found in context")
@@ -147,7 +152,143 @@ func (h *DoctorProfileHandler) GetSchedule(w http.ResponseWriter, r *http.Reques
 	GenerateResponse(&w, http.StatusOK, scheduleResponse)
 }
 
-// Helper function to get userID from context
+type ExtendAvailabilityRequest struct {
+	WeeksToAdd int `json:"weeks_to_add" validate:"required,min=1,max=52"`
+}
+
+func (h *DoctorProfileHandler) ExtendAvailability(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	var req ExtendAvailabilityRequest
+	if err := ParseRequestBody(w, r, &req); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorService.ExtendAvailability(r.Context(), userID, req.WeeksToAdd); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("Availability extended by %d weeks", req.WeeksToAdd),
+	})
+}
+
+func (h *DoctorProfileHandler) ListDoctors(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	// Build filters from query parameters
+	filters := make(map[string]interface{})
+	if specialization := r.URL.Query().Get("specialization"); specialization != "" {
+		filters["specialization"] = specialization
+	}
+	if name := r.URL.Query().Get("name"); name != "" {
+		filters["name"] = name
+	}
+
+	response, err := h.doctorService.ListDoctors(r.Context(), filters, page, limit)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, response)
+}
+
+func (h *DoctorProfileHandler) GetDoctorPublicProfile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	doctorID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid doctor ID"))
+		return
+	}
+
+	profile, err := h.doctorService.GetProfile(r.Context(), uint(doctorID))
+	if err != nil {
+		if err.Error() == "doctor profile not found" {
+			GenerateErrorResponse(&w, e.NewNotFoundError("doctor profile not found"))
+			return
+		}
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	// if profile.User != nil {
+	// 	profile.User.PasswordHash = ""
+	// 	profile.User.ResetToken = ""
+	// }
+
+	GenerateResponse(&w, http.StatusOK, profile)
+}
+
+func (h *DoctorProfileHandler) BlockSlot(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	var req models.BlockSlotRequest
+	if err := ParseRequestBody(w, r, &req); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	if err := h.doctorService.BlockSlot(r.Context(), userID, &req); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"message": "Slot blocked successfully",
+	})
+}
+
+func (h *DoctorProfileHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	doctorID, err := strconv.ParseUint(vars["doctorId"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid doctor ID"))
+		return
+	}
+
+	dateStr := r.URL.Query().Get("date")
+	if dateStr == "" {
+		GenerateErrorResponse(&w, e.NewBadRequestError("date parameter is required"))
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid date format. Use YYYY-MM-DD"))
+		return
+	}
+
+	if date.Before(time.Now().Truncate(24 * time.Hour)) {
+		GenerateErrorResponse(&w, e.NewBadRequestError("cannot fetch slots for past dates"))
+		return
+	}
+
+	slots, err := h.doctorService.GetAvailableSlots(uint(doctorID), date)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"slots": slots,
+		"date":  dateStr,
+		"count": len(slots),
+	})
+}
+
 func getUserIDFromContext(r *http.Request) (uint, error) {
 	userIDInterface := r.Context().Value("userID")
 	if userIDInterface == nil {
