@@ -220,12 +220,18 @@ func (h *DoctorProfileHandler) GetDoctorPublicProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	// if profile.User != nil {
-	// 	profile.User.PasswordHash = ""
-	// 	profile.User.ResetToken = ""
-	// }
+	// Remove any sensitive or empty fields
+	sanitizedProfile := map[string]interface{}{
+		"id":              profile.ID,
+		"userId":          profile.UserID,
+		"user":            profile.User,
+		"basicInfo":       profile.BasicInfo,
+		"qualifications":  profile.Qualifications,
+		"practiceDetails": profile.PracticeDetails,
+		"specializations": profile.Specializations,
+	}
 
-	GenerateResponse(&w, http.StatusOK, profile)
+	GenerateResponse(&w, http.StatusOK, sanitizedProfile)
 }
 
 func (h *DoctorProfileHandler) BlockSlot(w http.ResponseWriter, r *http.Request) {

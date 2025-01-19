@@ -10,13 +10,13 @@ type DoctorProfile struct {
 	gorm.Model
 	UserID          uint            `json:"userId" gorm:"uniqueIndex:idx_user_id;not null"`
 	User            *DoctorUserInfo `json:"user" gorm:"foreignKey:UserID"`
-	BasicInfoJSON   string          `json:"-" gorm:"column:basic_info_json"`
+	BasicInfoJSON   string          `json:"-" gorm:"column:basic_info_json;type:jsonb"`
 	BasicInfo       BasicInfo       `json:"basicInfo" gorm:"-"`
-	QualJSON        string          `json:"-" gorm:"column:qual_json"`
+	QualJSON        string          `json:"-" gorm:"column:qual_json;type:jsonb"`
 	Qualifications  Qualifications  `json:"qualifications" gorm:"-"`
-	PracticeJSON    string          `json:"-" gorm:"column:practice_json"`
+	PracticeJSON    string          `json:"-" gorm:"column:practice_json;type:jsonb"`
 	PracticeDetails PracticeDetails `json:"practiceDetails" gorm:"-"`
-	SpecJSON        string          `json:"-" gorm:"column:spec_json"`
+	SpecJSON        string          `json:"-" gorm:"column:spec_json;type:jsonb"`
 	Specializations SpecInfo        `json:"specializations" gorm:"-"`
 }
 

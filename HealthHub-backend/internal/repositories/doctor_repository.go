@@ -4,6 +4,7 @@ import (
 	"HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -38,20 +39,17 @@ func (r *DoctorRepository) SaveProfile(ctx context.Context, profile *models.Doct
 		return err
 	}
 
-	// Using transaction to handle the upsert properly
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var existing models.DoctorProfile
 		err := tx.Where("user_id = ?", profile.UserID).First(&existing).Error
 
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-				// Create new profile
 				return tx.Create(profile).Error
 			}
 			return err
 		}
 
-		// Update existing profile
 		profile.ID = existing.ID
 		return tx.Save(profile).Error
 	})
@@ -59,21 +57,80 @@ func (r *DoctorRepository) SaveProfile(ctx context.Context, profile *models.Doct
 
 func (r *DoctorRepository) GetProfile(ctx context.Context, userID uint) (*models.DoctorProfile, error) {
 	var profile models.DoctorProfile
+
+	log.Printf("Fetching doctor profile for userID: %d", userID)
+
 	err := r.db.WithContext(ctx).
-		Joins("JOIN users ON users.id = doctor_profiles.user_id").
+		Table("doctor_profiles").
+		Select("doctor_profiles.*, basic_info_json, qual_json, practice_json, spec_json").
+		Joins("LEFT JOIN users ON users.id = doctor_profiles.user_id").
 		Where("doctor_profiles.user_id = ? AND users.role = ?", userID, models.RoleDoctor).
 		Preload("User", func(db *gorm.DB) *gorm.DB {
-			// Only select necessary user fields
 			return db.Select("id, name, profile_picture")
 		}).
 		First(&profile).Error
 
 	if err != nil {
+		log.Printf("Error fetching profile: %v", err)
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.NewNotFoundError("doctor profile not found")
 		}
 		return nil, err
 	}
+
+	var jsonData struct {
+		BasicInfoJSON string `gorm:"column:basic_info_json"`
+		QualJSON      string `gorm:"column:qual_json"`
+		PracticeJSON  string `gorm:"column:practice_json"`
+		SpecJSON      string `gorm:"column:spec_json"`
+	}
+
+	err = r.db.WithContext(ctx).
+		Table("doctor_profiles").
+		Where("user_id = ?", userID).
+		Select("basic_info_json, qual_json, practice_json, spec_json").
+		Scan(&jsonData).Error
+
+	if err != nil {
+		log.Printf("Error fetching JSON data: %v", err)
+		return nil, err
+	}
+
+	log.Printf("Raw JSON data - Basic: %s", jsonData.BasicInfoJSON)
+	log.Printf("Raw JSON data - Qual: %s", jsonData.QualJSON)
+	log.Printf("Raw JSON data - Practice: %s", jsonData.PracticeJSON)
+	log.Printf("Raw JSON data - Spec: %s", jsonData.SpecJSON)
+
+	if jsonData.BasicInfoJSON != "" {
+		if err := json.Unmarshal([]byte(jsonData.BasicInfoJSON), &profile.BasicInfo); err != nil {
+			log.Printf("Error unmarshaling BasicInfo: %v", err)
+		}
+	}
+	if jsonData.QualJSON != "" {
+		if err := json.Unmarshal([]byte(jsonData.QualJSON), &profile.Qualifications); err != nil {
+			log.Printf("Error unmarshaling Qualifications: %v", err)
+		}
+	}
+	if jsonData.PracticeJSON != "" {
+		if err := json.Unmarshal([]byte(jsonData.PracticeJSON), &profile.PracticeDetails); err != nil {
+			log.Printf("Error unmarshaling PracticeDetails: %v", err)
+		}
+	}
+	if jsonData.SpecJSON != "" {
+		if err := json.Unmarshal([]byte(jsonData.SpecJSON), &profile.Specializations); err != nil {
+			log.Printf("Error unmarshaling Specializations: %v", err)
+		}
+	}
+
+	if err := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", userID).
+		Select("id, name, profile_picture").
+		Scan(&profile.User).Error; err != nil {
+		log.Printf("Error fetching user data: %v", err)
+	}
+
+	log.Printf("Final profile data: %+v", profile)
 	return &profile, nil
 }
 
@@ -171,7 +228,7 @@ func (r *DoctorRepository) ListDoctors(ctx context.Context, filters map[string]i
 		Preload("User", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id, name, profile_picture")
 		})
-
+	fmt.Print(query)
 	if specialization, ok := filters["specialization"].(string); ok && specialization != "" {
 		query = query.Where("basic_info_json->>'specializations' @> ?", fmt.Sprintf("[\"%s\"]", specialization))
 	}
