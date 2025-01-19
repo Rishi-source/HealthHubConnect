@@ -34,10 +34,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "userID", userID)
-		// Also add db to context if needed by other middleware
-		ctx = context.WithValue(ctx, "db", r.Context().Value("db"))
-
-		// Create new request with updated context
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)

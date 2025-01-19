@@ -43,7 +43,7 @@ func NewAppointmentService(
 	userRepo repositories.UserRepository,
 	doctorRepo *repositories.DoctorRepository,
 ) (AppointmentService, error) {
-	meetService, err := NewMeetService()
+	meetService, err := NewMeetService(&userRepo)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,11 @@ func (s *appointmentService) GetAppointmentByID(id uint) (*models.Appointment, e
 }
 
 func (s *appointmentService) GetPatientAppointments(patientID uint) ([]models.Appointment, error) {
-	return s.appointmentRepo.GetAppointmentsByPatientID(patientID)
+	appointments, err := s.appointmentRepo.GetAppointmentsByPatientID(patientID)
+	if err != nil {
+		return nil, e.NewInternalError()
+	}
+	return appointments, nil
 }
 
 func (s *appointmentService) GetDoctorAppointments(doctorID uint) ([]models.Appointment, error) {

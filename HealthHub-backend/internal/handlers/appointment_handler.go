@@ -109,28 +109,38 @@ func (h *AppointmentHandler) GetAppointment(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AppointmentHandler) GetMyAppointments(w http.ResponseWriter, r *http.Request) {
-	userID, err := getUserIDFromContext(r)
-	if err != nil {
+	// Use the same method as other handlers to get userID
+	userID := r.Context().Value("userID")
+	if userID == nil {
 		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
 		return
 	}
 
-	// Check if user is a doctor
-	isDoctor := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID) == nil
-
-	var appointments []models.Appointment
-	if isDoctor {
-		appointments, err = h.appointmentService.GetDoctorAppointments(userID)
-	} else {
-		appointments, err = h.appointmentService.GetPatientAppointments(userID)
+	// Convert userID to uint based on type
+	var uid uint
+	switch v := userID.(type) {
+	case float64:
+		uid = uint(v)
+	case int:
+		uid = uint(v)
+	case uint:
+		uid = v
+	default:
+		GenerateErrorResponse(&w, e.NewInternalError())
+		return
 	}
 
+	appointments, err := h.appointmentService.GetPatientAppointments(uid)
 	if err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	GenerateResponse(&w, http.StatusOK, appointments)
+	w.Header().Set("Content-Type", "application/json")
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"appointments": appointments,
+		"count":        len(appointments),
+	})
 }
 
 func (h *AppointmentHandler) SetDoctorAvailability(w http.ResponseWriter, r *http.Request) {

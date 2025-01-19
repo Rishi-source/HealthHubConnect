@@ -26,13 +26,15 @@ func RegisterAppointmentRoutes(router *mux.Router, db *gorm.DB) {
 	p := router.PathPrefix("/appointments").Subrouter()
 	p.Use(middleware.AuthMiddleware)
 
+	// Move /my route before parameterized routes to ensure proper matching
+	p.HandleFunc("/my", appointmentHandler.GetMyAppointments).Methods("GET")
+
 	// General appointment routes
 	p.HandleFunc("", appointmentHandler.CreateAppointment).Methods("POST")
 	p.HandleFunc("/{id}", appointmentHandler.GetAppointment).Methods("GET")
 	p.HandleFunc("/{id}/status", appointmentHandler.UpdateAppointmentStatus).Methods("PUT")
 
 	// Patient-specific routes
-	p.HandleFunc("/my", appointmentHandler.GetMyAppointments).Methods("GET")
 	p.HandleFunc("/my/upcoming", appointmentHandler.GetMyUpcomingAppointments).Methods("GET")
 	p.HandleFunc("/my/past", appointmentHandler.GetMyPastAppointments).Methods("GET")
 	p.HandleFunc("/{id}/cancel", appointmentHandler.CancelAppointment).Methods("PUT")
