@@ -6,6 +6,7 @@ import (
 	"HealthHubConnect/internal/repositories"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -33,36 +34,43 @@ type AppointmentService interface {
 type appointmentService struct {
 	appointmentRepo repositories.AppointmentRepository
 	userRepo        repositories.UserRepository
-	doctorRepo      *repositories.DoctorRepository // Change to concrete type
+	doctorRepo      *repositories.DoctorRepository
+	meetService     *MeetService
 }
 
 func NewAppointmentService(
 	appointmentRepo repositories.AppointmentRepository,
 	userRepo repositories.UserRepository,
-	doctorRepo *repositories.DoctorRepository, // Change to concrete type
-) AppointmentService {
+	doctorRepo *repositories.DoctorRepository,
+) (AppointmentService, error) {
+	meetService, err := NewMeetService()
+	if err != nil {
+		return nil, err
+	}
+
 	return &appointmentService{
 		appointmentRepo: appointmentRepo,
 		userRepo:        userRepo,
 		doctorRepo:      doctorRepo,
-	}
+		meetService:     meetService,
+	}, nil
 }
 
 func (s *appointmentService) CreateAppointment(appointment *models.Appointment) error {
-	ctx := context.Background()
-	// Validate doctor existence and role
-	doctor, err := s.userRepo.FindByID(ctx, appointment.DoctorID)
-	if err != nil {
-		return e.NewNotFoundError("doctor not found")
-	}
-	if doctor.Role != models.RoleDoctor {
-		return e.NewForbiddenError("selected user is not a doctor")
+	// Get current date without time component for comparison
+	now := time.Now().Truncate(24 * time.Hour)
+	appointmentDate := appointment.Date.Truncate(24 * time.Hour)
+
+	if appointmentDate.Before(now) {
+		return e.NewBadRequestError("cannot schedule appointments in the past")
 	}
 
-	// Validate appointment times
-	now := time.Now()
-	if appointment.Date.Before(now.Truncate(24 * time.Hour)) {
-		return e.NewBadRequestError("cannot schedule appointments in the past")
+	if appointmentDate.Equal(now) {
+		// If same day, check if appointment time is in the past
+		currentTime := time.Now()
+		if appointment.StartTime.Before(currentTime) {
+			return e.NewBadRequestError("cannot schedule appointments in the past")
+		}
 	}
 
 	if appointment.EndTime.Before(appointment.StartTime) {
@@ -86,6 +94,15 @@ func (s *appointmentService) CreateAppointment(appointment *models.Appointment) 
 	}
 	if len(existing) > 0 {
 		return e.NewDuplicateResourceError("time slot already booked")
+	}
+
+	// Generate Meet link for online appointments
+	if appointment.Type == models.TypeOnline {
+		meetLink, err := s.meetService.CreateMeetLink(context.Background(), appointment)
+		if err != nil {
+			return fmt.Errorf("failed to create meet link: %v", err)
+		}
+		appointment.MeetLink = meetLink
 	}
 
 	appointment.Status = models.StatusPending
@@ -141,20 +158,17 @@ func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([
 		}
 	}
 
-	// Get day schedule
 	dayOfWeek := strings.ToLower(date.Weekday().String())
 	daySchedule, exists := parsedSchedule.Days[dayOfWeek]
 	if !exists || !daySchedule.Enabled {
 		return nil, e.NewNotFoundError("no slots available for this day")
 	}
 
-	// Get existing appointments
 	existingAppointments, err := s.appointmentRepo.GetAppointmentsByDoctorAndDate(doctorID, date)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update the loop to handle ScheduleTimeSlot
 	var availableSlots []models.TimeSlot
 	for _, scheduleSlot := range daySchedule.Slots {
 		startTime, _ := time.Parse("15:04", scheduleSlot.Start)

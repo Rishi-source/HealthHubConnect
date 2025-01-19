@@ -34,23 +34,28 @@ func NewAppointmentHandler(
 }
 
 func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
+		return
+	}
+
 	var req models.AppointmentRequest
 	if err := ParseRequestBody(w, r, &req); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(r.Context())
+	// Create appointment
+	appointment, err := req.ToAppointment(userID)
 	if err != nil {
-		GenerateErrorResponse(&w, e.NewNotAuthorizedError(err.Error()))
+		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
 		return
 	}
 
-	// Parse and validate date/time
-	appointment, err := req.ToAppointment(userID)
-	if err != nil {
-		// Fix: Use NewValidationError instead of NewBadRequestError
-		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
+	// Verify the doctor exists before creating appointment
+	if _, err := h.userRepository.FindByID(r.Context(), req.DoctorID); err != nil {
+		GenerateErrorResponse(&w, e.NewNotFoundError("doctor not found"))
 		return
 	}
 
@@ -104,31 +109,28 @@ func (h *AppointmentHandler) GetAppointment(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AppointmentHandler) GetMyAppointments(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r.Context())
+	userID, err := getUserIDFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
 		return
 	}
 
-	user, err := h.userRepository.FindByID(r.Context(), userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// Check if user is a doctor
+	isDoctor := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID) == nil
 
 	var appointments []models.Appointment
-	if user.Role == models.RoleDoctor {
+	if isDoctor {
 		appointments, err = h.appointmentService.GetDoctorAppointments(userID)
 	} else {
 		appointments, err = h.appointmentService.GetPatientAppointments(userID)
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	json.NewEncoder(w).Encode(appointments)
+	GenerateResponse(&w, http.StatusOK, appointments)
 }
 
 func (h *AppointmentHandler) SetDoctorAvailability(w http.ResponseWriter, r *http.Request) {
@@ -455,3 +457,23 @@ func (h *AppointmentHandler) MarkNoShow(w http.ResponseWriter, r *http.Request) 
 
 	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment marked as no-show"})
 }
+
+// // Helper function to get userID from context
+// func getUserIDFromContext(r *http.Request) (uint, error) {
+// 	userID := r.Context().Value("userID")
+// 	if userID == nil {
+// 		return 0, e.NewNotAuthorizedError("user ID not found in context")
+// 	}
+
+// 	// Handle different types of userID (float64 from JWT claims)
+// 	switch v := userID.(type) {
+// 	case float64:
+// 		return uint(v), nil
+// 	case uint:
+// 		return v, nil
+// 	case int:
+// 		return uint(v), nil
+// 	default:
+// 		return 0, e.NewNotAuthorizedError("invalid user ID format")
+// 	}
+// }

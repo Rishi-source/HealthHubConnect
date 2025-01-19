@@ -5,6 +5,7 @@ import (
 	"HealthHubConnect/internal/repositories"
 	"HealthHubConnect/internal/services"
 	"HealthHubConnect/pkg/middleware"
+	"log"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -14,7 +15,12 @@ func RegisterAppointmentRoutes(router *mux.Router, db *gorm.DB) {
 	appointmentRepo := repositories.NewAppointmentRepository(db)
 	userRepo := repositories.NewUserRepository(db)
 	doctorRepo := repositories.NewDoctorRepository(db)
-	appointmentService := services.NewAppointmentService(appointmentRepo, *userRepo, doctorRepo)
+
+	appointmentService, err := services.NewAppointmentService(appointmentRepo, *userRepo, doctorRepo)
+	if err != nil {
+		log.Fatalf("Failed to initialize appointment service: %v", err)
+	}
+
 	appointmentHandler := handlers.NewAppointmentHandler(appointmentService, userRepo, doctorRepo)
 
 	p := router.PathPrefix("/appointments").Subrouter()

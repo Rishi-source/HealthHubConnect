@@ -1,7 +1,6 @@
 package models
 
 import (
-	"HealthHubConnect/internal/utils"
 	"fmt"
 	"time"
 )
@@ -12,12 +11,16 @@ func (r *AppointmentRequest) ToAppointment(patientID uint) (*Appointment, error)
 		return nil, fmt.Errorf("invalid date format: use YYYY-MM-DD")
 	}
 
-	startTime, err := utils.CombineDateAndTime(date, r.StartTime)
+	// Parse time strings
+	startTimeStr := fmt.Sprintf("%s %s", r.Date, r.StartTime)
+	endTimeStr := fmt.Sprintf("%s %s", r.Date, r.EndTime)
+
+	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid start time format: use HH:mm:ss")
 	}
 
-	endTime, err := utils.CombineDateAndTime(date, r.EndTime)
+	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid end time format: use HH:mm:ss")
 	}
@@ -78,6 +81,7 @@ type Appointment struct {
 	CancelledAt *time.Time        `json:"cancelled_at"`
 	CancelledBy *uint             `json:"cancelled_by"`
 	Reminder    bool              `json:"reminder" gorm:"default:true"`
+	MeetLink    string            `json:"meet_link,omitempty" gorm:"type:text"`
 	CreatedAt   time.Time         `json:"created_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
