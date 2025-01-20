@@ -19,8 +19,15 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 
 func (ur *UserRepository) CreateUser(user *models.User, ctx context.Context) error {
 	result := ur.db.WithContext(ctx).Create(user)
+	// fmt.Println("repo:", user.PasswordHash)
+	// fmt.Println("result:", result)
+	// forPassword := ur.db.WithContext(ctx).Save(user)
+	// fmt.Println(forPassword)
 	if result.Error != nil {
 		return fmt.Errorf("failed to create user: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no rows were affected when creating user")
 	}
 	return nil
 }

@@ -273,3 +273,24 @@ func (s *DoctorService) GetAvailableSlots(doctorID uint, date time.Time) ([]mode
 
 	return availableSlots, nil
 }
+
+func (s *DoctorService) ListPatients(ctx context.Context, doctorID uint, page, limit int) (*models.PatientListResponse, error) {
+	if err := s.doctorRepo.ValidateDoctorAccess(ctx, doctorID); err != nil {
+		return nil, err
+	}
+
+	patients, total, err := s.doctorRepo.GetDoctorPatients(ctx, doctorID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+
+	return &models.PatientListResponse{
+		Patients:    patients,
+		Total:       total,
+		CurrentPage: page,
+		PerPage:     limit,
+		TotalPages:  totalPages,
+	}, nil
+}

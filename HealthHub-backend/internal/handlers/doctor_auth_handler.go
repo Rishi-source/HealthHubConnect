@@ -37,7 +37,6 @@ func (h *DoctorHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send verification email explicitly
 	if err := h.userService.SendVerificationEmail(user); err != nil {
 		log.Printf("Failed to send verification email: %v", err)
 	}
@@ -56,17 +55,17 @@ func (h *DoctorHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Login attempt for email: %s", req.Email)
+	log.Printf("Doctor login attempt for email: %s", req.Email)
 
 	ctx := r.Context()
 	user, tokens, err := h.userService.LoginWithRole(ctx, req.Email, req.Password, models.RoleDoctor)
 	if err != nil {
-		log.Printf("Login failed for email %s: %v", req.Email, err)
+		log.Printf("Doctor login failed for email %s: %v", req.Email, err)
 		GenerateErrorResponse(&w, err)
 		return
 	}
 
-	log.Printf("Login successful for email: %s", req.Email)
+	log.Printf("Doctor login successful for email: %s", req.Email)
 	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
 		"user":   user,
 		"tokens": tokens,

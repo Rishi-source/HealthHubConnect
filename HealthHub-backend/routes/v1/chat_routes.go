@@ -24,6 +24,8 @@ func RegisterChatRoutes(router *mux.Router, db *gorm.DB, wsManager *websocket.Ma
 
 	chatRouter.Use(middleware.LoggingMiddleware)
 	chatRouter.Use(middleware.AuthMiddleware)
+	chatRouter.Use(middleware.CorsMiddleware)
+	// chatRouter.Use(middleware.RateLimitMiddleware) TODO: will add later when get time
 
 	chatRouter.HandleFunc("/ws/{recipientId}", wsHandler.HandleWebSocket).Methods("GET")
 	chatRouter.HandleFunc("/history/{senderId}", wsHandler.GetChatHistory).Methods("GET")

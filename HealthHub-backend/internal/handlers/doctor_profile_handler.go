@@ -295,6 +295,32 @@ func (h *DoctorProfileHandler) GetAvailableSlots(w http.ResponseWriter, r *http.
 	})
 }
 
+func (h *DoctorProfileHandler) ListPatients(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	response, err := h.doctorService.ListPatients(r.Context(), userID, page, limit)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, response)
+}
+
 func getUserIDFromContext(r *http.Request) (uint, error) {
 	userIDInterface := r.Context().Value("userID")
 	if userIDInterface == nil {

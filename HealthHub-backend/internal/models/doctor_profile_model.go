@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -161,4 +162,22 @@ type BlockSlotRequest struct {
 	StartTime string `json:"start_time" validate:"required"`
 	EndTime   string `json:"end_time" validate:"required"`
 	Reason    string `json:"reason,omitempty"`
+}
+
+type PatientListResponse struct {
+	Patients    []PatientInfo `json:"patients"`
+	Total       int64         `json:"total"`
+	CurrentPage int           `json:"current_page"`
+	PerPage     int           `json:"per_page"`
+	TotalPages  int           `json:"total_pages"`
+}
+
+type PatientInfo struct {
+	UserID          uint       `json:"user_id"`
+	Name            string     `json:"name"`
+	Email           string     `json:"email"`
+	Phone           int64      `json:"phone"`
+	LastVisit       *time.Time `json:"last_visit"`
+	TotalVisits     int        `json:"total_visits"`
+	NextAppointment *time.Time `json:"next_appointment,omitempty"`
 }

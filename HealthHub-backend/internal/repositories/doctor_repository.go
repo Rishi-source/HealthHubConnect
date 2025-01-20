@@ -3,6 +3,7 @@ package repositories
 import (
 	"HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -259,4 +260,64 @@ func (r *DoctorRepository) DeleteAvailabilitySlots(ctx context.Context, doctorID
 		Where("doctor_id = ? AND date = ? AND start_time >= ? AND end_time <= ?",
 			doctorID, date, startTime, endTime).
 		Delete(&models.DoctorAvailability{}).Error
+}
+
+// Update the return type to use models package
+func (r *DoctorRepository) GetDoctorPatients(ctx context.Context, doctorID uint, page, limit int) ([]models.PatientInfo, int64, error) {
+	var patients []models.PatientInfo
+	var total int64
+
+	// First get unique patient IDs
+	subquery := r.db.WithContext(ctx).
+		Table("appointments").
+		Select("DISTINCT patient_id").
+		Where("doctor_id = ?", doctorID)
+
+	// Then get patient details with visit information
+	query := r.db.WithContext(ctx).
+		Table("users").
+		Select(`
+            users.id as user_id,
+            users.name,
+            users.email,
+            users.phone,
+            (SELECT date FROM appointments a1 
+             WHERE a1.patient_id = users.id 
+             AND a1.doctor_id = ? 
+             AND a1.status = 'COMPLETED'
+             ORDER BY date DESC LIMIT 1) as last_visit,
+            (SELECT COUNT(*) FROM appointments a2 
+             WHERE a2.patient_id = users.id 
+             AND a2.doctor_id = ? 
+             AND a2.status = 'COMPLETED') as total_visits,
+            (SELECT date FROM appointments a3 
+             WHERE a3.patient_id = users.id 
+             AND a3.doctor_id = ? 
+             AND a3.date > datetime('now') 
+             AND a3.status = 'CONFIRMED'
+             ORDER BY date ASC LIMIT 1) as next_appointment
+        `, doctorID, doctorID, doctorID).
+		Joins("JOIN (?) AS pat ON users.id = pat.patient_id", subquery).
+		Where("users.role = ?", models.RolePatient)
+
+	// Get total count
+	err := r.db.WithContext(ctx).
+		Table("(?)", query).
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	err = query.
+		Order("last_visit DESC").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Scan(&patients).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return patients, total, nil
 }

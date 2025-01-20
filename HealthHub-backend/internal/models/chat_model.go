@@ -3,7 +3,7 @@ package models
 import "time"
 
 type ChatMessage struct {
-	Base
+	Base                 // This should be without a field name to properly embed
 	SenderID   uint      `json:"sender_id" gorm:"not null"`
 	ReceiverID uint      `json:"receiver_id" gorm:"not null"`
 	Content    string    `json:"content" gorm:"not null"`

@@ -55,24 +55,31 @@ func (s *UserService) createUserCommon(ctx context.Context, name, email, passwor
 		return nil, fmt.Errorf("internal server error")
 	}
 
-	user := &models.User{
-		Name:         name,
-		Email:        email,
-		PasswordHash: hashedPassword,
-		Phone:        phone,
-		Role:         role,
-	}
-
 	resetOTP := utils.GenerateResetOTP()
-	user.ResetToken = resetOTP
-	user.ResetTokenExpiry = time.Now().Add(24 * time.Hour)
+	user := &models.User{
+		Name:             name,
+		Email:            email,
+		PasswordHash:     hashedPassword,
+		Phone:            phone,
+		Role:             role,
+		ResetToken:       resetOTP,
+		ResetTokenExpiry: time.Now().Add(24 * time.Hour),
+		IsActive:         true,
+		AuthProvider:     "local",
+	}
+	// fmt.Println("testing_service", user.PasswordHash)
 
 	if err := s.userRepo.CreateUser(user, ctx); err != nil {
 		log.Printf("Error creating user: %v", err)
 		return nil, err
 	}
+	// user, err = s.userRepo.FindByEmail(ctx, email)
+	// user.PasswordHash = hashedPassword
 
-	user.PasswordHash = ""
+	// s.userRepo.UpdateUser(user, ctx)
+	// s.sendVerificationEmail(email, name, resetOTP)
+
+	// user.PasswordHash = ""
 	return user, nil
 }
 
@@ -90,8 +97,6 @@ func (s *UserService) validateLogin(ctx context.Context, email, password string)
 		log.Printf("Login attempt failed: email not found: %s", email)
 		return nil, e.NewValidationError("invalid email or password")
 	}
-
-	// Add debug logging
 	log.Printf("Comparing passwords for user: %s", email)
 	if err := utils.ComparePassword(password, user.PasswordHash); err != nil {
 		log.Printf("Password comparison failed for user %s: %v", email, err)

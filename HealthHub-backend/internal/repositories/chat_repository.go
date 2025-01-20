@@ -3,6 +3,8 @@ package repositories
 import (
 	"HealthHubConnect/internal/models"
 	"context"
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -16,9 +18,34 @@ func NewChatRepository(db *gorm.DB) *ChatRepository {
 }
 
 func (r *ChatRepository) SaveMessage(ctx context.Context, msg *models.ChatMessage) error {
-	return r.db.WithContext(ctx).
-		Create(msg).
-		Error
+	// Start transaction
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	// Validate message fields
+	if msg.SenderID == 0 || msg.ReceiverID == 0 || msg.Content == "" {
+		tx.Rollback()
+		return fmt.Errorf("invalid message fields: sender=%d receiver=%d content=%s",
+			msg.SenderID, msg.ReceiverID, msg.Content)
+	}
+
+	// Set creation time
+	msg.CreatedAt = time.Now()
+
+	// Create the message within transaction
+	if err := tx.Create(msg).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to save message: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (r *ChatRepository) GetChatHistory(ctx context.Context, user1ID, user2ID uint, limit, offset int) ([]models.ChatMessage, error) {

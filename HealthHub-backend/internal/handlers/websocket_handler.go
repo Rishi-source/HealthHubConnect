@@ -42,7 +42,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 
 	senderID, err := utils.GetUserIDFromContext(r.Context())
 	if err != nil {
-		loggerManager.ServerLogger.Error().Err(err).Msg("Failed to get user ID from context")
+		loggerManager.ServerLogger.Error().Err(err).Msg("Invalid or missing authentication")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -54,16 +54,14 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Invalid recipient ID", http.StatusBadRequest)
 		return
 	}
-
-	// for testing (uncomment in prod)
-	// if err := h.userRepository.VerifyUsers(r.Context(), senderID, uint(recipientID)); err != nil {
-	// 	loggerManager.ServerLogger.Error().Err(err).
-	// 		Uint("senderID", senderID).
-	// 		Uint64("recipientID", recipientID).
-	// 		Msg("User verification failed")
-	// 	http.Error(w, "Invalid user IDs", http.StatusBadRequest)
-	// 	return
-	// }
+	if err := h.userRepository.VerifyUsers(r.Context(), senderID, uint(recipientID)); err != nil {
+		loggerManager.ServerLogger.Error().Err(err).
+			Uint("senderID", senderID).
+			Uint64("recipientID", recipientID).
+			Msg("User verification failed")
+		http.Error(w, "Invalid user IDs", http.StatusBadRequest)
+		return
+	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -93,6 +91,9 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 		client.Conn.Close()
 	}()
 
+	// Create a background context for chat operations
+	chatCtx := context.Background()
+
 	for {
 		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
@@ -105,12 +106,11 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			break
 		}
 
-		chatMessage := models.ChatMessage{
-			SenderID:   client.UserID,
-			ReceiverID: client.RecipientID,
+		var wsMessage struct {
+			Content string `json:"content"`
 		}
 
-		if err := json.Unmarshal(message, &chatMessage); err != nil {
+		if err := json.Unmarshal(message, &wsMessage); err != nil {
 			loggerManager.ServerLogger.Error().
 				Err(err).
 				Str("message", string(message)).
@@ -118,18 +118,44 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			continue
 		}
 
-		if err := h.chatRepository.SaveMessage(ctx, &chatMessage); err != nil {
+		chatMessage := &models.ChatMessage{
+			SenderID:   client.UserID,
+			ReceiverID: client.RecipientID,
+			Content:    wsMessage.Content,
+			// CreatedAt:  time.Now(),
+		}
+
+		if err := h.chatRepository.SaveMessage(chatCtx, chatMessage); err != nil {
 			loggerManager.ServerLogger.Error().
 				Err(err).
 				Interface("message", chatMessage).
 				Msg("Failed to save chat message")
+
+			// Send error message back to client
+			errorMsg := map[string]string{"error": "Failed to save message"}
+			errorBytes, _ := json.Marshal(errorMsg)
+			client.Conn.WriteMessage(websocket.TextMessage, errorBytes)
 			continue
 		}
 
+		// Send success response
+		responseMsg, err := json.Marshal(chatMessage)
+		if err != nil {
+			loggerManager.ServerLogger.Error().
+				Err(err).
+				Interface("message", chatMessage).
+				Msg("Failed to marshal response message")
+			continue
+		}
+
+		// Send to sender for confirmation
+		client.Conn.WriteMessage(websocket.TextMessage, responseMsg)
+
+		// Send to recipients
 		recipients := h.manager.GetClientsByUserID(client.RecipientID)
 		for _, recipient := range recipients {
 			select {
-			case recipient.Send <- message:
+			case recipient.Send <- responseMsg:
 			default:
 				close(recipient.Send)
 				recipient.Conn.Close()

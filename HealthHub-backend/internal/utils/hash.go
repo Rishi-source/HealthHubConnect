@@ -44,7 +44,6 @@ func HashPassword(password string) (string, error) {
 
 // ComparePassword compares a password with a hash
 func ComparePassword(password, hash string) error {
-	// Add debug logging
 	if password == "" || hash == "" {
 		log.Printf("Empty password or hash received: pwd_len=%d, hash_len=%d", len(password), len(hash))
 		return fmt.Errorf("invalid password or hash")
@@ -52,9 +51,15 @@ func ComparePassword(password, hash string) error {
 
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	if err != nil {
+		if err == bcrypt.ErrMismatchedHashAndPassword {
+			log.Printf("Password mismatch for hash length: %d", len(hash))
+			return fmt.Errorf("invalid password")
+		}
 		log.Printf("Password comparison error: %v", err)
 		return err
 	}
+
+	log.Printf("Password comparison successful")
 	return nil
 }
 
