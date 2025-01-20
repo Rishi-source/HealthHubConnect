@@ -42,6 +42,7 @@ func RegisterDoctorRoutes(router *mux.Router, db *gorm.DB) {
 	protected.HandleFunc("/schedule", doctorProfileHandler.GetSchedule).Methods("GET")
 	protected.HandleFunc("/schedule/extend", doctorProfileHandler.ExtendAvailability).Methods("POST")
 	protected.HandleFunc("/schedule/block", doctorProfileHandler.BlockSlot).Methods("POST")
+	// protected.HandleFunc("/patient-login-history", adminHandler.GetPatientLoginHistory).Methods("GET")
 
 	protected.HandleFunc("/patients", doctorProfileHandler.ListPatients).Methods("GET")
 }

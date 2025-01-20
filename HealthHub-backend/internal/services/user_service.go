@@ -94,16 +94,38 @@ func (s *UserService) CreateUserWithRole(ctx context.Context, name, email, passw
 func (s *UserService) validateLogin(ctx context.Context, email, password string) (*models.User, error) {
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
+		//fmt.Println("error", err)
+		s.trackLoginAttempt(ctx, 0, email, false)
 		log.Printf("Login attempt failed: email not found: %s", email)
 		return nil, e.NewValidationError("invalid email or password")
 	}
-	log.Printf("Comparing passwords for user: %s", email)
+
 	if err := utils.ComparePassword(password, user.PasswordHash); err != nil {
+		s.trackLoginAttempt(ctx, user.ID, email, false)
 		log.Printf("Password comparison failed for user %s: %v", email, err)
 		return nil, e.NewValidationError("invalid email or password")
 	}
 
 	return user, nil
+}
+
+func (s *UserService) trackLoginAttempt(ctx context.Context, userID uint, email string, successful bool) {
+	ipAddress := "unknown"
+	if ip, ok := ctx.Value("ipAddress").(string); ok && ip != "" {
+		ipAddress = ip
+	}
+
+	loginAttempt := &models.LoginAttempt{
+		UserID:     userID,
+		IPAddress:  ipAddress,
+		Email:      email,
+		Successful: successful,
+		Timestamp:  time.Now(),
+	}
+
+	if err := s.userRepo.CreateLoginAttempt(ctx, loginAttempt); err != nil {
+		log.Printf("Failed to record login attempt: %v", err)
+	}
 }
 
 func (s *UserService) Login(ctx context.Context, email, password string) (*models.User, utils.TokenPair, error) {
@@ -139,8 +161,22 @@ func (s *UserService) finalizeLogin(ctx context.Context, user *models.User) (*mo
 		return nil, utils.TokenPair{}, e.NewInternalError()
 	}
 
+	s.trackLoginAttempt(ctx, user.ID, user.Email, true)
+
 	user.PasswordHash = ""
 	return user, tokenPair, nil
+}
+
+func (s *UserService) GetLoginHistory(ctx context.Context, userID uint, page, pageSize int) ([]models.LoginAttempt, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	offset := (page - 1) * pageSize
+	return s.userRepo.GetLoginHistory(ctx, userID, pageSize, offset)
 }
 
 func (s *UserService) sendVerificationEmail(email, name, otp string) {
@@ -372,7 +408,6 @@ HealthHub Team`, user.Name, resetOTP)
 	return nil
 }
 
-// Add this new method
 func (s *UserService) SendVerificationEmail(user *models.User) error {
 	if user.EmailVerified {
 		return e.NewValidationError("email already verified")
@@ -401,4 +436,8 @@ Best regards,
 HealthHub Team`, user.Name, resetOTP)
 
 	return utils.SendEmail(user.Email, subject, body)
+}
+
+func (s *UserService) CheckUserRole(ctx context.Context, userID uint, role models.UserRole) (bool, error) {
+	return s.userRepo.CheckUserRole(ctx, userID, role)
 }

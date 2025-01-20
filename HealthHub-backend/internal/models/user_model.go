@@ -38,6 +38,7 @@ type LoginAttempt struct {
 	Base
 	UserID     uint      `json:"user_id"`
 	User       User      `json:"user" gorm:"foreignKey:UserID"`
+	Email      string    `json:"email"` // for failed attempts maybe useful in future will implement if get time
 	IPAddress  string    `json:"ip_address"`
 	Successful bool      `json:"successful"`
 	Timestamp  time.Time `json:"timestamp"`

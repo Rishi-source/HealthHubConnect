@@ -125,3 +125,19 @@ func NewConflictError(message string) *CustomError {
 		StatusCode: http.StatusConflict,
 	}
 }
+
+type AppError struct {
+	Message    string `json:"message"`
+	StatusCode int    `json:"status_code"`
+}
+
+func (e *AppError) Error() string {
+	return e.Message
+}
+
+func NewAppError(message string, statusCode int) *AppError {
+	return &AppError{
+		Message:    message,
+		StatusCode: statusCode,
+	}
+}

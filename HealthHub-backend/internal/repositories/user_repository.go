@@ -97,3 +97,26 @@ func (ur *UserRepository) CheckUserRole(ctx context.Context, userID uint, role m
 	}
 	return user.Role == role, nil
 }
+
+func (ur *UserRepository) CreateLoginAttempt(ctx context.Context, attempt *models.LoginAttempt) error {
+	result := ur.db.WithContext(ctx).Create(attempt)
+	if result.Error != nil {
+		return fmt.Errorf("failed to create login attempt: %w", result.Error)
+	}
+	return nil
+}
+
+func (ur *UserRepository) GetLoginHistory(ctx context.Context, userID uint, limit, offset int) ([]models.LoginAttempt, error) {
+	var attempts []models.LoginAttempt
+	result := ur.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("timestamp desc").
+		Limit(limit).
+		Offset(offset).
+		Find(&attempts)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to fetch login history: %w", result.Error)
+	}
+	return attempts, nil
+}

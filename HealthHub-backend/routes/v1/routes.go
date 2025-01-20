@@ -20,6 +20,7 @@ func RegisterRoutes(router *mux.Router, db *gorm.DB, mapsClient *maps.Client, ws
 	RegisterDoctorRoutes(router, db)
 	RegisterAppointmentRoutes(router, db)
 	RegisterChatRoutes(router, db, wsManager)
+	RegisterAdminRoutes(router, db)
 
 	router.HandleFunc("/health", handlers.HealthCheck).Methods("GET")
 

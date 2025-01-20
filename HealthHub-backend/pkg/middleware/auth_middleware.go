@@ -18,7 +18,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Split Bearer token
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			err := e.NewNotAuthorizedError("invalid authorization header format")
@@ -33,7 +32,16 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		ip := r.Header.Get("X-Forwarded-For")
+		if ip == "" {
+			ip = r.Header.Get("X-Real-IP") //TODO: learn ip tracking in http requests
+		}
+		if ip == "" {
+			ip = strings.Split(r.RemoteAddr, ":")[0]
+		}
+
 		ctx := context.WithValue(r.Context(), "userID", userID)
+		ctx = context.WithValue(ctx, "ipAddress", ip)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)

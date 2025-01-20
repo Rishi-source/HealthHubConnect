@@ -262,18 +262,15 @@ func (r *DoctorRepository) DeleteAvailabilitySlots(ctx context.Context, doctorID
 		Delete(&models.DoctorAvailability{}).Error
 }
 
-// Update the return type to use models package
 func (r *DoctorRepository) GetDoctorPatients(ctx context.Context, doctorID uint, page, limit int) ([]models.PatientInfo, int64, error) {
 	var patients []models.PatientInfo
 	var total int64
 
-	// First get unique patient IDs
 	subquery := r.db.WithContext(ctx).
 		Table("appointments").
 		Select("DISTINCT patient_id").
 		Where("doctor_id = ?", doctorID)
 
-	// Then get patient details with visit information
 	query := r.db.WithContext(ctx).
 		Table("users").
 		Select(`
@@ -300,7 +297,6 @@ func (r *DoctorRepository) GetDoctorPatients(ctx context.Context, doctorID uint,
 		Joins("JOIN (?) AS pat ON users.id = pat.patient_id", subquery).
 		Where("users.role = ?", models.RolePatient)
 
-	// Get total count
 	err := r.db.WithContext(ctx).
 		Table("(?)", query).
 		Count(&total).Error
@@ -308,7 +304,6 @@ func (r *DoctorRepository) GetDoctorPatients(ctx context.Context, doctorID uint,
 		return nil, 0, err
 	}
 
-	// Get paginated results
 	err = query.
 		Order("last_visit DESC").
 		Offset((page - 1) * limit).
@@ -320,4 +315,12 @@ func (r *DoctorRepository) GetDoctorPatients(ctx context.Context, doctorID uint,
 	}
 
 	return patients, total, nil
+}
+
+func (r *DoctorRepository) IsPatientOfDoctor(ctx context.Context, doctorID, patientID uint) bool {
+	var count int64
+	r.db.WithContext(ctx).Model(&models.Appointment{}).
+		Where("doctor_id = ? AND patient_id = ?", doctorID, patientID).
+		Count(&count)
+	return count > 0
 }
