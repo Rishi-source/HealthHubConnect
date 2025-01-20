@@ -33,4 +33,7 @@ func RegisterChatRoutes(router *mux.Router, db *gorm.DB, wsManager *websocket.Ma
 
 	chatRouter.HandleFunc("/gpt/query", chatGPTHandler.HandleChatQuery).Methods("POST")
 	chatRouter.HandleFunc("/gpt/health-summary", chatGPTHandler.HandleHealthSummary).Methods("GET")
+
+	chatRouter.HandleFunc("/recent", wsHandler.GetRecentChats).Methods("GET")
+	chatRouter.HandleFunc("/unread/{senderId}", wsHandler.GetUnreadCount).Methods("GET")
 }

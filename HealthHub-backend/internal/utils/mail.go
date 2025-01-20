@@ -1,83 +1,90 @@
 package utils
 
+import (
+	"HealthHubConnect/env"
+	"crypto/tls"
+	"fmt"
+	"net/smtp"
+)
+
 func SendEmail(to string, subject string, bodyContent string) error {
 	// fmt.Println(to, subject, bodyContent)
-	return nil
+	// return nil
 	// logger := logger.GetLogger()
-	// smtpHost := env.Mail.SmtpHost
-	// smtpPort := env.Mail.SmtpPort
+	smtpHost := env.Mail.SmtpHost
+	smtpPort := env.Mail.SmtpPort
 
-	// username := env.Mail.MailUsername
-	// password := env.Mail.MailPassword
+	username := env.Mail.MailUsername
+	password := env.Mail.MailPassword
 
-	// // fmt.Println("smtpHost: ", smtpHost, "smtpPort: ", smtpPort, "username: ", username, "password: ", password)
+	// fmt.Println("smtpHost: ", smtpHost, "smtpPort: ", smtpPort, "username: ", username, "password: ", password)
 
-	// tlsConfig := &tls.Config{
-	// 	InsecureSkipVerify: true,
-	// 	ServerName:         smtpHost,
-	// }
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		ServerName:         smtpHost,
+	}
 
-	// addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
-	// conn, err := tls.Dial("tcp", addr, tlsConfig)
-	// if err != nil {
-	// 	// logger.GeneralLogger.Error().Err(err).Msg("failed to connect to SMTP server")
-	// 	return fmt.Errorf("failed to connect to SMTP server: %v", err)
-	// }
-	// defer conn.Close()
+	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
+	conn, err := tls.Dial("tcp", addr, tlsConfig)
+	if err != nil {
+		// logger.GeneralLogger.Error().Err(err).Msg("failed to connect to SMTP server")
+		return fmt.Errorf("failed to connect to SMTP server: %v", err)
+	}
+	defer conn.Close()
 
-	// client, err := smtp.NewClient(conn, smtpHost)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create SMTP client: %v", err)
-	// }
-	// defer client.Close()
+	client, err := smtp.NewClient(conn, smtpHost)
+	if err != nil {
+		return fmt.Errorf("failed to create SMTP client: %v", err)
+	}
+	defer client.Close()
 
-	// auth := smtp.PlainAuth("", username, password, smtpHost)
-	// if err = client.Auth(auth); err != nil {
-	// 	return fmt.Errorf("failed to authenticate: %v", err)
-	// }
+	auth := smtp.PlainAuth("", username, password, smtpHost)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("failed to authenticate: %v", err)
+	}
 
-	// from := username
-	// // recipients := []string{to}
+	from := username
+	// recipients := []string{to}
 
-	// headers := make(map[string]string)
-	// headers["From"] = "HealthHub <" + from + ">"
-	// headers["To"] = to
-	// headers["Subject"] = subject
-	// headers["MIME-Version"] = "1.0"
-	// headers["Content-Type"] = "text/plain; charset=\"utf-8\""
+	headers := make(map[string]string)
+	headers["From"] = "HealthHub <" + from + ">"
+	headers["To"] = to
+	headers["Subject"] = subject
+	headers["MIME-Version"] = "1.0"
+	headers["Content-Type"] = "text/plain; charset=\"utf-8\""
 
-	// message := ""
-	// for key, value := range headers {
-	// 	message += fmt.Sprintf("%s: %s\r\n", key, value)
-	// }
-	// message += "\r\n" + bodyContent
+	message := ""
+	for key, value := range headers {
+		message += fmt.Sprintf("%s: %s\r\n", key, value)
+	}
+	message += "\r\n" + bodyContent
 
-	// if err = client.Mail(from); err != nil {
-	// 	fmt.Println(err)
-	// 	return fmt.Errorf("failed to set from address: %v", err)
-	// }
-	// if err = client.Rcpt(to); err != nil {
-	// 	fmt.Println(err)
-	// 	return fmt.Errorf("failed to set recipient: %v", err)
-	// }
+	if err = client.Mail(from); err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to set from address: %v", err)
+	}
+	if err = client.Rcpt(to); err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to set recipient: %v", err)
+	}
 
-	// w, err := client.Data()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return fmt.Errorf("failed to open data connection: %v", err)
-	// }
+	w, err := client.Data()
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("failed to open data connection: %v", err)
+	}
 
-	// _, err = w.Write([]byte(message))
-	// if err != nil {
-	// 	fmt.Println(err)
+	_, err = w.Write([]byte(message))
+	if err != nil {
+		fmt.Println(err)
 
-	// 	return fmt.Errorf("failed to write message: %v", err)
-	// }
+		return fmt.Errorf("failed to write message: %v", err)
+	}
 
-	// err = w.Close()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to close data connection: %v", err)
-	// }
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close data connection: %v", err)
+	}
 
-	// return client.Quit()
+	return client.Quit()
 }

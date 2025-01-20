@@ -10,17 +10,20 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
+// Update the upgrader configuration
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+	EnableCompression: true,
 }
 
 type WebSocketHandler struct {
@@ -70,17 +73,71 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Configure WebSocket connection
+	conn.SetReadLimit(512 * 1024) // 512KB max message size
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
 	client := &wsManager.Client{
 		Conn:        conn,
-		Send:        make(chan []byte),
+		Send:        make(chan []byte, 256), // Buffered channel
 		UserID:      senderID,
 		RecipientID: uint(recipientID),
 	}
 
 	h.manager.Register(client)
 
+	// Log successful connection
+	loggerManager.ServerLogger.Info().
+		Uint("senderID", senderID).
+		Uint("recipientID", uint(recipientID)).
+		Msg("WebSocket connection established")
+
 	go h.readPump(client, r.Context())
 	go h.writePump(client)
+}
+
+// Add new response types
+type WSResponse struct {
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload"`
+}
+
+type MessagePayload struct {
+	ID        uint      `json:"id"`
+	Content   string    `json:"content"`
+	SenderID  uint      `json:"sender_id"`
+	CreatedAt time.Time `json:"created_at"`
+	Read      bool      `json:"read"`
+}
+
+type TypingPayload struct {
+	UserID uint `json:"user_id"`
+	Status bool `json:"status"`
+}
+
+type MessageResponse struct {
+	Type      string    `json:"type"`
+	MessageID uint      `json:"message_id"`
+	Content   string    `json:"content"`
+	SenderID  uint      `json:"sender_id"`
+	Time      time.Time `json:"time"`
+	Status    string    `json:"status"`
+}
+
+func sendWebSocketResponse(loggerManager *logger.LoggerManager, conn *websocket.Conn, response interface{}) error {
+	conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+	if err := conn.WriteJSON(response); err != nil {
+		loggerManager.ServerLogger.Error().
+			Err(err).
+			Interface("response", response).
+			Msg("Failed to send WebSocket response")
+		return err
+	}
+	return nil
 }
 
 func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Context) {
@@ -89,13 +146,19 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 	defer func() {
 		h.manager.Unregister(client)
 		client.Conn.Close()
+		loggerManager.ServerLogger.Info().
+			Uint("userID", client.UserID).
+			Msg("WebSocket connection closed")
 	}()
 
-	// Create a background context for chat operations
-	chatCtx := context.Background()
+	client.Conn.SetReadLimit(512 * 1024)
+
+	// ping ticker
+	ticker := time.NewTicker(54 * time.Second)
+	defer ticker.Stop()
 
 	for {
-		_, message, err := client.Conn.ReadMessage()
+		messageType, message, err := client.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				loggerManager.ServerLogger.Error().
@@ -106,66 +169,169 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			break
 		}
 
+		// Log received message
+		loggerManager.ServerLogger.Debug().
+			Int("messageType", messageType).
+			Str("message", string(message)).
+			Msg("Received WebSocket message")
+
 		var wsMessage struct {
+			Type    string `json:"type"`
 			Content string `json:"content"`
+			Typing  bool   `json:"typing,omitempty"`
 		}
 
 		if err := json.Unmarshal(message, &wsMessage); err != nil {
 			loggerManager.ServerLogger.Error().
 				Err(err).
 				Str("message", string(message)).
-				Msg("Failed to unmarshal chat message")
+				Msg("Failed to unmarshal message")
+
+			// Send error response to client
+			errorResponse := MessageResponse{
+				Type:    "error",
+				Content: "Invalid message format",
+				Status:  "error",
+				Time:    time.Now(),
+			}
+			client.Conn.WriteJSON(errorResponse)
 			continue
 		}
 
-		chatMessage := &models.ChatMessage{
-			SenderID:   client.UserID,
-			ReceiverID: client.RecipientID,
-			Content:    wsMessage.Content,
-			// CreatedAt:  time.Now(),
-		}
+		// Handle different message types
+		switch wsMessage.Type {
+		case "message":
+			// Create timeout context for database operation
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 
-		if err := h.chatRepository.SaveMessage(chatCtx, chatMessage); err != nil {
-			loggerManager.ServerLogger.Error().
-				Err(err).
-				Interface("message", chatMessage).
-				Msg("Failed to save chat message")
+			chatMessage := &models.ChatMessage{
+				Base: models.Base{
+					CreatedAt: time.Now(),
+				},
+				SenderID:   client.UserID,
+				ReceiverID: client.RecipientID,
+				Content:    wsMessage.Content,
+			}
 
-			// Send error message back to client
-			errorMsg := map[string]string{"error": "Failed to save message"}
-			errorBytes, _ := json.Marshal(errorMsg)
-			client.Conn.WriteMessage(websocket.TextMessage, errorBytes)
-			continue
-		}
+			loggerManager.ServerLogger.Info().
+				Uint("senderID", chatMessage.SenderID).
+				Uint("receiverID", chatMessage.ReceiverID).
+				Str("content", chatMessage.Content).
+				Msg("Attempting to save chat message")
 
-		// Send success response
-		responseMsg, err := json.Marshal(chatMessage)
-		if err != nil {
-			loggerManager.ServerLogger.Error().
-				Err(err).
-				Interface("message", chatMessage).
-				Msg("Failed to marshal response message")
-			continue
-		}
+			if err := h.chatRepository.SaveMessage(timeoutCtx, chatMessage); err != nil {
+				loggerManager.ServerLogger.Error().
+					Err(err).
+					Interface("message", chatMessage).
+					Msg("Failed to save chat message")
 
-		// Send to sender for confirmation
-		client.Conn.WriteMessage(websocket.TextMessage, responseMsg)
+				errorResponse := MessageResponse{
+					Type:     "error",
+					Content:  "Failed to save message",
+					Status:   "error",
+					Time:     time.Now(),
+					SenderID: client.UserID,
+				}
+				if err := client.Conn.WriteJSON(errorResponse); err != nil {
+					loggerManager.ServerLogger.Error().Err(err).Msg("Failed to send error response")
+				}
+				continue
+			}
 
-		// Send to recipients
-		recipients := h.manager.GetClientsByUserID(client.RecipientID)
-		for _, recipient := range recipients {
-			select {
-			case recipient.Send <- responseMsg:
-			default:
-				close(recipient.Send)
-				recipient.Conn.Close()
+			loggerManager.ServerLogger.Info().
+				Uint("messageID", chatMessage.ID).
+				Msg("Successfully saved chat message")
+
+			// Create success response
+			response := MessageResponse{
+				Type:      "message",
+				MessageID: chatMessage.ID,
+				Content:   chatMessage.Content,
+				SenderID:  chatMessage.SenderID,
+				Time:      chatMessage.CreatedAt,
+				Status:    "sent",
+			}
+
+			// Send to sender with retry
+			for retries := 0; retries < 3; retries++ {
+				if err := sendWebSocketResponse(loggerManager, client.Conn, response); err != nil {
+					if retries == 2 {
+						loggerManager.ServerLogger.Error().
+							Err(err).
+							Msg("Failed to send response to sender after retries")
+						break
+					}
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				break
+			}
+
+			// Send to recipients with connection check
+			recipients := h.manager.GetClientsByUserID(client.RecipientID)
+			for _, recipient := range recipients {
+				if recipient.Conn != nil {
+					for retries := 0; retries < 3; retries++ {
+						if err := sendWebSocketResponse(loggerManager, recipient.Conn, response); err != nil {
+							if retries == 2 {
+								loggerManager.ServerLogger.Error().
+									Err(err).
+									Msg("Failed to send response to recipient after retries")
+								// Close failed connection
+								recipient.Conn.Close()
+								break
+							}
+							time.Sleep(100 * time.Millisecond)
+							continue
+						}
+						break
+					}
+				}
+			}
+
+		case "ping":
+			// Update ping response sending
+			if err := sendWebSocketResponse(loggerManager, client.Conn, MessageResponse{
+				Type:      "pong",
+				MessageID: 1,
+				Content:   "pong",
+				SenderID:  client.UserID,
+				Time:      time.Now(),
+				Status:    "success",
+			}); err != nil {
+				loggerManager.ServerLogger.Error().Err(err).Msg("Failed to send pong")
+			}
+
+		case "typing":
+			response := WSResponse{
+				Type: "typing",
+				Payload: TypingPayload{
+					UserID: client.UserID,
+					Status: wsMessage.Typing,
+				},
+			}
+			responseBytes, _ := json.Marshal(response)
+
+			// Send typing status to recipients
+			recipients := h.manager.GetClientsByUserID(client.RecipientID)
+			for _, recipient := range recipients {
+				select {
+				case recipient.Send <- responseBytes:
+				default:
+					close(recipient.Send)
+					recipient.Conn.Close()
+				}
 			}
 		}
 	}
 }
 
 func (h *WebSocketHandler) writePump(client *wsManager.Client) {
+	loggerManager := logger.GetLogger()
+	ticker := time.NewTicker(30 * time.Second) // Reduced from 54 to 30 seconds
 	defer func() {
+		ticker.Stop()
 		client.Conn.Close()
 	}()
 
@@ -177,13 +343,24 @@ func (h *WebSocketHandler) writePump(client *wsManager.Client) {
 				return
 			}
 
+			client.Conn.SetWriteDeadline(time.Now().Add(2 * time.Second)) // Reduced from 10 to 2 seconds
 			w, err := client.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				loggerManager.ServerLogger.Error().Err(err).Msg("Failed to get next writer")
 				return
 			}
+
 			w.Write(message)
 
 			if err := w.Close(); err != nil {
+				loggerManager.ServerLogger.Error().Err(err).Msg("Failed to close writer")
+				return
+			}
+
+		case <-ticker.C:
+			client.Conn.SetWriteDeadline(time.Now().Add(2 * time.Second)) // Reduced from 10 to 2 seconds
+			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				loggerManager.ServerLogger.Error().Err(err).Msg("Failed to send ping")
 				return
 			}
 		}
@@ -246,8 +423,7 @@ func (h *WebSocketHandler) GetChatHistory(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		loggerManager.ServerLogger.Error().Err(err).
 			Uint("currentUserID", currentUserID).
-			Uint64("senderID", senderID).
-			Int("limit", limit).
+			Uint64("senderID", senderID).Int("limit", limit).
 			Int("offset", offset).
 			Msg("Failed to fetch chat history")
 		http.Error(w, "Failed to fetch chat history", http.StatusInternalServerError)
@@ -264,13 +440,12 @@ func (h *WebSocketHandler) GetChatHistory(w http.ResponseWriter, r *http.Request
 
 func (h *WebSocketHandler) MarkMessagesAsRead(w http.ResponseWriter, r *http.Request) {
 	loggerManager := logger.GetLogger()
-
 	var req struct {
 		SenderID uint `json:"sender_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		loggerManager.ServerLogger.Error().Err(err).Msg("Invalid request body for mark messages as read")
+		loggerManager.ServerLogger.Error().Err(err).Msg("Invalid request body")
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -281,11 +456,80 @@ func (h *WebSocketHandler) MarkMessagesAsRead(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if req.SenderID == 0 {
+		http.Error(w, "Invalid sender ID", http.StatusBadRequest)
+		return
+	}
+
+	loggerManager.ServerLogger.Info().
+		Uint("currentUserID", currentUserID).
+		Uint("senderID", req.SenderID).
+		Msg("Attempting to mark messages as read")
+
 	err = h.chatRepository.MarkMessagesAsRead(r.Context(), currentUserID, req.SenderID)
 	if err != nil {
+		loggerManager.ServerLogger.Error().
+			Err(err).
+			Uint("currentUserID", currentUserID).
+			Uint("senderID", req.SenderID).
+			Msg("Failed to mark messages as read")
 		http.Error(w, "Failed to mark messages as read", http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Messages marked as read",
+	})
+}
+
+func (h *WebSocketHandler) GetRecentChats(w http.ResponseWriter, r *http.Request) {
+	loggerManager := logger.GetLogger()
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	messages, err := h.chatRepository.GetRecentChats(r.Context(), userID, 20)
+	if err != nil {
+		loggerManager.ServerLogger.Error().Err(err).Msg("Failed to fetch recent chats")
+		http.Error(w, "Failed to fetch recent chats", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
+func (h *WebSocketHandler) GetUnreadCount(w http.ResponseWriter, r *http.Request) {
+	loggerManager := logger.GetLogger()
+	currentUserID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	senderID, err := strconv.ParseUint(vars["senderId"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid sender ID", http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.chatRepository.GetUnreadCount(r.Context(), currentUserID, uint(senderID))
+	if err != nil {
+		loggerManager.ServerLogger.Error().Err(err).Msg("Failed to get unread count")
+		http.Error(w, "Failed to get unread count", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"unread_count": count,
+		"sender_id":    senderID,
+		"receiver_id":  currentUserID,
+	})
 }
