@@ -12,22 +12,22 @@ const (
 
 type Prescription struct {
 	Base
-	AppointmentID     uint               `json:"appointment_id" gorm:"not null;index"`
+	AppointmentID     uint               `json:"appointment_id" gorm:"not null;uniqueIndex"`
 	PatientID         uint               `json:"patient_id" gorm:"not null;index"`
 	DoctorID          uint               `json:"doctor_id" gorm:"not null;index"`
-	Diagnosis         []string           `json:"diagnosis" gorm:"type:jsonb"`
-	ChiefComplaints   []string           `json:"chief_complaints" gorm:"type:jsonb"`
-	Vitals            PrescriptionVitals `json:"vitals" gorm:"type:jsonb"`
-	Medications       []PrescribedMed    `json:"medications" gorm:"type:jsonb"`
-	Investigations    []Investigation    `json:"investigations" gorm:"type:jsonb"`
+	Diagnosis         []string           `json:"diagnosis" gorm:"type:text"`
+	ChiefComplaints   []string           `json:"chief_complaints" gorm:"type:text"`
+	Vitals            PrescriptionVitals `json:"vitals" gorm:"type:text"`
+	Medications       []PrescribedMed    `json:"medications" gorm:"type:text"`
+	Investigations    []Investigation    `json:"investigations" gorm:"type:text"`
 	Advice            string             `json:"advice" gorm:"type:text"`
-	FollowUp          *FollowUp          `json:"follow_up" gorm:"type:jsonb"`
+	FollowUp          *FollowUp          `json:"follow_up" gorm:"type:text"`
 	Status            PrescriptionStatus `json:"status" gorm:"type:varchar(20);default:'ACTIVE'"`
 	ExpiryDate        *time.Time         `json:"expiry_date"`
 	DoctorNotes       string             `json:"doctor_notes" gorm:"type:text"`
 	IsDigitallySigned bool               `json:"is_digitally_signed" gorm:"default:false"`
 	SignedAt          *time.Time         `json:"signed_at"`
-	PatientHistory    PatientHistory     `json:"patient_history" gorm:"type:jsonb"`
+	PatientHistory    PatientHistory     `json:"patient_history" gorm:"type:text"`
 }
 
 type PrescriptionVitals struct {

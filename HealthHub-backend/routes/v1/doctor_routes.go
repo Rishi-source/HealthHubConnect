@@ -23,7 +23,8 @@ func RegisterDoctorRoutes(router *mux.Router, db *gorm.DB) {
 
 	doctorRepo := repositories.NewDoctorRepository(db)
 	appointmentRepo := repositories.NewAppointmentRepository(db)
-	doctorService := services.NewDoctorService(doctorRepo, appointmentRepo)
+	prescriptionRepo := repositories.NewPrescriptionRepository(db)                            // Add this line
+	doctorService := services.NewDoctorService(doctorRepo, appointmentRepo, prescriptionRepo) // Add this parameter
 	doctorProfileHandler := handlers.NewDoctorProfileHandler(doctorService)
 
 	router.HandleFunc("/doctors", doctorProfileHandler.ListDoctors).Methods("GET")

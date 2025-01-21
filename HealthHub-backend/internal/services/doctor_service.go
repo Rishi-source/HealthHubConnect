@@ -16,14 +16,20 @@ import (
 )
 
 type DoctorService struct {
-	doctorRepo      *repositories.DoctorRepository
-	appointmentRepo repositories.AppointmentRepository
+	doctorRepo       *repositories.DoctorRepository
+	appointmentRepo  repositories.AppointmentRepository
+	prescriptionRepo *repositories.PrescriptionRepository
 }
 
-func NewDoctorService(doctorRepo *repositories.DoctorRepository, appointmentRepo repositories.AppointmentRepository) *DoctorService {
+func NewDoctorService(
+	doctorRepo *repositories.DoctorRepository,
+	appointmentRepo repositories.AppointmentRepository,
+	prescriptionRepo *repositories.PrescriptionRepository,
+) *DoctorService {
 	return &DoctorService{
-		doctorRepo:      doctorRepo,
-		appointmentRepo: appointmentRepo,
+		doctorRepo:       doctorRepo,
+		appointmentRepo:  appointmentRepo,
+		prescriptionRepo: prescriptionRepo,
 	}
 }
 
@@ -355,14 +361,10 @@ func (s *DoctorService) CreatePrescription(ctx context.Context, prescription *mo
 		return nil, err
 	}
 
-	// if appointment.DoctorID != prescription.DoctorID {
-	// 	return nil, e.NewForbiddenError("not authorized to create prescription for this appointment")
-	// }
-
 	prescription.PatientID = appointment.PatientID
 	prescription.Status = models.PrescriptionStatusActive
 
-	if err := s.doctorRepo.CreatePrescription(ctx, prescription); err != nil {
+	if err := s.prescriptionRepo.Create(ctx, prescription); err != nil {
 		return nil, err
 	}
 
@@ -401,11 +403,11 @@ func (s *DoctorService) CreatePrescription(ctx context.Context, prescription *mo
 }
 
 func (s *DoctorService) GetPrescription(ctx context.Context, appointmentID uint) (*models.Prescription, error) {
-	return s.doctorRepo.GetPrescriptionByAppointmentID(ctx, appointmentID)
+	return s.prescriptionRepo.GetByAppointmentID(ctx, appointmentID)
 }
 
 func (s *DoctorService) UpdatePrescription(ctx context.Context, appointmentID uint, prescription *models.Prescription) error {
-	return s.doctorRepo.UpdatePrescription(ctx, appointmentID, prescription)
+	return s.prescriptionRepo.Update(ctx, appointmentID, prescription)
 }
 
 func (s *DoctorService) SaveBillingSettings(ctx context.Context, doctorID uint, settings json.RawMessage) error {
