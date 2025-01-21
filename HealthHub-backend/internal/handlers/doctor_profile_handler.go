@@ -182,11 +182,9 @@ func (h *DoctorProfileHandler) ExtendAvailability(w http.ResponseWriter, r *http
 }
 
 func (h *DoctorProfileHandler) ListDoctors(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
-	// Build filters from query parameters
 	filters := make(map[string]interface{})
 	if specialization := r.URL.Query().Get("specialization"); specialization != "" {
 		filters["specialization"] = specialization
@@ -222,7 +220,6 @@ func (h *DoctorProfileHandler) GetDoctorPublicProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	// Remove any sensitive or empty fields
 	sanitizedProfile := map[string]interface{}{
 		"id":              profile.ID,
 		"userId":          profile.UserID,
@@ -349,13 +346,11 @@ func (h *DoctorProfileHandler) SaveBillingSettings(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Just validate the billing settings structure
 	if err := validateBillingSettings(&billingSettings); err != nil {
 		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
 		return
 	}
 
-	//  billingSettings to json.RawMessage
 	settingsJSON, err := json.Marshal(billingSettings)
 	if err != nil {
 		GenerateErrorResponse(&w, e.NewBadRequestError("error marshaling settings"))
@@ -373,9 +368,7 @@ func (h *DoctorProfileHandler) SaveBillingSettings(w http.ResponseWriter, r *htt
 	})
 }
 
-// Add this helper function
 func validateBillingSettings(settings *models.BillingSettings) error {
-	// Validate consultation fees
 	if settings.ConsultationFees.Online.Amount < 0 {
 		return fmt.Errorf("online consultation amount cannot be negative")
 	}
@@ -386,12 +379,10 @@ func validateBillingSettings(settings *models.BillingSettings) error {
 		return fmt.Errorf("follow-up consultation amount cannot be negative")
 	}
 
-	// Validate at least one payment method
 	if len(settings.PaymentMethods) == 0 {
 		return fmt.Errorf("at least one payment method is required")
 	}
 
-	// Basic validation for UPI and bank details
 	for _, upi := range settings.UPIDetails {
 		if upi.UPIId == "" {
 			return fmt.Errorf("UPI ID cannot be empty")
@@ -436,20 +427,17 @@ func (h *DoctorProfileHandler) UpdateBillingSettings(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Validate billing settings
 	if err := validateBillingSettings(&billingSettings); err != nil {
 		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
 		return
 	}
 
-	// Convert to json.RawMessage
 	settingsJSON, err := json.Marshal(billingSettings)
 	if err != nil {
 		GenerateErrorResponse(&w, e.NewBadRequestError("error marshaling settings"))
 		return
 	}
 
-	// Save using the service method
 	if err := h.doctorService.SaveBillingSettings(r.Context(), userID, json.RawMessage(settingsJSON)); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
@@ -593,7 +581,6 @@ func (h *DoctorProfileHandler) CreatePrescription(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Create prescription using the PrescriptionRequest model
 	prescription := &models.Prescription{
 		DoctorID:        userID,
 		AppointmentID:   uint(appointmentID),
@@ -602,11 +589,11 @@ func (h *DoctorProfileHandler) CreatePrescription(w http.ResponseWriter, r *http
 		DoctorNotes:     prescriptionReq.DoctorNotes,
 		Medications:     prescriptionReq.Medications,
 		Investigations:  prescriptionReq.Investigations,
-		Advice:          prescriptionReq.Advice,            // Now matches the string type
+		Advice:          prescriptionReq.Advice,
 		FollowUp:        prescriptionReq.FollowUp,
 		Status:          prescriptionReq.Status,
-		Vitals:          *prescriptionReq.Vitals,          // Dereference the pointer
-		PatientHistory:  *prescriptionReq.PatientHistory,  // Dereference the pointer
+		Vitals:          *prescriptionReq.Vitals,
+		PatientHistory:  *prescriptionReq.PatientHistory,
 	}
 
 	createdPrescription, err := h.doctorService.CreatePrescription(r.Context(), prescription)

@@ -126,6 +126,7 @@ func NewConflictError(message string) *CustomError {
 	}
 }
 
+// for testing some pointer based errors
 type AppError struct {
 	Message    string `json:"message"`
 	StatusCode int    `json:"status_code"`

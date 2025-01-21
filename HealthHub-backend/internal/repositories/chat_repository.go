@@ -13,31 +13,29 @@ type ChatRepository struct {
 	db *gorm.DB
 }
 
+// todo: implement context more carefully if i get time
 func NewChatRepository(db *gorm.DB) *ChatRepository {
 	return &ChatRepository{db: db}
 }
 
 func (r *ChatRepository) SaveMessage(ctx context.Context, msg *models.ChatMessage) error {
-	// Start transaction with context
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return fmt.Errorf("failed to begin transaction: %v", tx.Error)
 	}
 
-	// Rollback transaction in case of error
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
 	}()
 
-	// Create the message within transaction
 	if err := tx.Create(msg).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("failed to save message: %v", err)
 	}
 
-	// Commit transaction
+	// Commit transaction its necessary to use context dont forget
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
@@ -70,20 +68,17 @@ func (r *ChatRepository) GetChatHistory(ctx context.Context, user1ID, user2ID ui
 func (r *ChatRepository) MarkMessagesAsRead(ctx context.Context, receiverID, senderID uint) error {
 	now := time.Now()
 
-	// Start a transaction
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return fmt.Errorf("failed to begin transaction: %v", tx.Error)
 	}
 
-	// Rollback transaction in case of error
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
 	}()
 
-	// Update the messages
 	result := tx.Model(&models.ChatMessage{}).
 		Where("receiver_id = ? AND sender_id = ? AND read = ?", receiverID, senderID, false).
 		Updates(map[string]interface{}{
@@ -97,13 +92,11 @@ func (r *ChatRepository) MarkMessagesAsRead(ctx context.Context, receiverID, sen
 		return fmt.Errorf("failed to update messages: %v", result.Error)
 	}
 
-	// Log the update for debugging
 	var count int64
 	tx.Model(&models.ChatMessage{}).
 		Where("receiver_id = ? AND sender_id = ? AND read = ?", receiverID, senderID, true).
 		Count(&count)
 
-	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}

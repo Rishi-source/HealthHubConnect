@@ -28,7 +28,6 @@ func (r *HealthRepository) CreateHealthProfile(ctx context.Context, profile *mod
 		}
 	}()
 
-	// Get existing user details
 	var user models.User
 	if err := tx.Select("id, email, phone, name").Where("id = ?", profile.UserID).First(&user).Error; err != nil {
 		tx.Rollback()
@@ -41,7 +40,6 @@ func (r *HealthRepository) CreateHealthProfile(ctx context.Context, profile *mod
 		return e.NewWrapperError(err)
 	}
 
-	// Create related records if they exist
 	if len(profile.EmergencyContacts) > 0 {
 		for i := range profile.EmergencyContacts {
 			profile.EmergencyContacts[i].UserID = profile.UserID
@@ -118,7 +116,6 @@ func (r *HealthRepository) UpdateHealthProfile(ctx context.Context, profile *mod
 		}
 	}()
 
-	// Get existing user details
 	var user models.User
 	if err := tx.Select("id, email, phone, name").Where("id = ?", profile.UserID).First(&user).Error; err != nil {
 		tx.Rollback()
@@ -146,7 +143,6 @@ func (r *HealthRepository) UpdateHealthProfile(ctx context.Context, profile *mod
 		}
 	}
 
-	// Handle allergies
 	if err := tx.Where("user_id = ?", profile.UserID).Delete(&models.Allergy{}).Error; err != nil {
 		tx.Rollback()
 		return e.NewWrapperError(err)

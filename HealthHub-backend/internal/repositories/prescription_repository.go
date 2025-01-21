@@ -20,7 +20,6 @@ func NewPrescriptionRepository(db *gorm.DB) *PrescriptionRepository {
 
 func (r *PrescriptionRepository) Create(ctx context.Context, prescription *models.Prescription) error {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Check for existing prescription
 		var exists bool
 		if err := tx.Model(&models.Prescription{}).
 			Where("appointment_id = ?", prescription.AppointmentID).
@@ -33,7 +32,6 @@ func (r *PrescriptionRepository) Create(ctx context.Context, prescription *model
 			return errors.NewBadRequestError("prescription already exists for this appointment")
 		}
 
-		// Marshal JSON fields
 		diagnosisJSON, err := json.Marshal(prescription.Diagnosis)
 		if err != nil {
 			return err
@@ -63,7 +61,6 @@ func (r *PrescriptionRepository) Create(ctx context.Context, prescription *model
 			return err
 		}
 
-		// Create prescription with JSON strings
 		result := tx.Exec(`
             INSERT INTO prescriptions (
                 appointment_id, patient_id, doctor_id,
@@ -135,7 +132,6 @@ func (r *PrescriptionRepository) GetByAppointmentID(ctx context.Context, appoint
 		return nil, err
 	}
 
-	// Copy non-JSON fields
 	prescription.Base = rawData.Base
 	prescription.AppointmentID = rawData.AppointmentID
 	prescription.PatientID = rawData.PatientID

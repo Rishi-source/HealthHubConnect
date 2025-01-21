@@ -15,7 +15,6 @@ func NewBillingRepository(db *gorm.DB) *BillingRepository {
 	return &BillingRepository{db: db}
 }
 
-// For doctor's billing settings
 func (r *BillingRepository) SaveDoctorBillingSettings(ctx context.Context, settings *models.DoctorBillingSettings) error {
 	return r.db.WithContext(ctx).Save(settings).Error
 }
@@ -26,7 +25,6 @@ func (r *BillingRepository) GetDoctorBillingSettings(ctx context.Context, doctor
 	return &settings, err
 }
 
-// For bills
 func (r *BillingRepository) CreateBill(ctx context.Context, bill *models.Bill) error {
 	return r.db.WithContext(ctx).Create(bill).Error
 }
@@ -99,11 +97,11 @@ func (r *BillingRepository) ProcessRefund(ctx context.Context, billID uint, refu
 		return tx.Model(&models.Bill{}).
 			Where("id = ?", billID).
 			Updates(map[string]interface{}{
-				"refund_status":   models.RefundStatusPending,
-				"refund_amount":   refundAmount,
-				"refund_reason":   reason,
-				"refund_date":     gorm.Expr("CURRENT_TIMESTAMP"),
-				"status":          "REFUND_PENDING",
+				"refund_status": models.RefundStatusPending,
+				"refund_amount": refundAmount,
+				"refund_reason": reason,
+				"refund_date":   gorm.Expr("CURRENT_TIMESTAMP"),
+				"status":        "REFUND_PENDING",
 			}).Error
 	})
 }

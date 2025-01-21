@@ -65,7 +65,7 @@ type ConsultationFee struct {
 	} `json:"cancellation_policy"`
 }
 
-type Bill struct {
+type Bill struct { // insipired by razor pay's fields
 	Base
 	BillNumber     string `json:"bill_number" gorm:"uniqueIndex"`
 	AppointmentID  uint   `json:"appointment_id" gorm:"index"`
@@ -73,7 +73,6 @@ type Bill struct {
 	PatientID      uint   `json:"patient_id" gorm:"index"`
 	DoctorID       uint   `json:"doctor_id" gorm:"index"`
 
-	// Amounts
 	SubTotal       float64 `json:"sub_total"`
 	TaxAmount      float64 `json:"tax_amount"`
 	DiscountAmount float64 `json:"discount_amount"`
@@ -82,27 +81,23 @@ type Bill struct {
 	DueAmount      float64 `json:"due_amount"`
 	Currency       string  `json:"currency" gorm:"default:'INR'"`
 
-	// Bill Details
 	Items          []BillItem `json:"items" gorm:"serializer:json"` // Use serializer tag for SQLite
 	Status         BillStatus `json:"status" gorm:"type:varchar(20)"`
 	DueDate        time.Time  `json:"due_date"`
 	BillingAddress Address    `json:"billing_address" gorm:"type:jsonb"`
 	Notes          string     `json:"notes" gorm:"type:text"`
 
-	// Payment Details
 	PaymentMethod  string          `json:"payment_method"`           // Change from PaymentMethod to string
 	PaymentDetails json.RawMessage `json:"payment_details" gorm:"-"` // Use gorm:"-" to handle manually
 	PaymentDate    *time.Time      `json:"payment_date"`
 	TransactionID  string          `json:"transaction_id"`
 
-	// Refund Details
 	RefundStatus RefundStatus `json:"refund_status"`
 	RefundAmount float64      `json:"refund_amount"`
 	RefundDate   *time.Time   `json:"refund_date"`
 	RefundReason string       `json:"refund_reason"`
 	RefundTxnID  string       `json:"refund_transaction_id"`
 
-	// Tax Details
 	TaxInfo TaxInfo `json:"tax_info" gorm:"type:jsonb"`
 
 	// Metadata
@@ -114,12 +109,10 @@ type Bill struct {
 	ReminderCount int        `json:"reminder_count" gorm:"default:0"`
 }
 
-// Add table name method
 func (Bill) TableName() string {
 	return "bills"
 }
 
-// Add a custom scanner for the Bill model
 func (b *Bill) AfterFind(tx *gorm.DB) error {
 	var rawData struct {
 		PaymentDetails string `gorm:"column:payment_details"`
@@ -219,7 +212,7 @@ type BillRequest struct {
 		TaxRate     float64 `json:"tax_rate"`
 	} `json:"items" validate:"required,min=1"`
 	PaymentMethod  string  `json:"payment_method" validate:"required,oneof=UPI CARD CASH BANK_TRANSFER"`
-	DueDate        string  `json:"due_date" validate:"required"` // Changed from time.Time to string
+	DueDate        string  `json:"due_date" validate:"required"`
 	Notes          string  `json:"notes"`
 	DiscountAmount float64 `json:"discount_amount"`
 	TaxRate        float64 `json:"tax_rate"`

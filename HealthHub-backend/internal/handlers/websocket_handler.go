@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Update the upgrader configuration
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -73,8 +72,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Configure WebSocket connection
-	conn.SetReadLimit(512 * 1024) // 512KB max message size
+	conn.SetReadLimit(512 * 1024) // used max message size
 	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -83,7 +81,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 
 	client := &wsManager.Client{
 		Conn:        conn,
-		Send:        make(chan []byte, 256), // Buffered channel
+		Send:        make(chan []byte, 256),
 		UserID:      senderID,
 		RecipientID: uint(recipientID),
 	}
@@ -100,7 +98,6 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	go h.writePump(client)
 }
 
-// Add new response types
 type WSResponse struct {
 	Type    string      `json:"type"`
 	Payload interface{} `json:"payload"`
@@ -153,7 +150,7 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 
 	client.Conn.SetReadLimit(512 * 1024)
 
-	// ping ticker
+	// ping ticker for testing only
 	ticker := time.NewTicker(54 * time.Second)
 	defer ticker.Stop()
 
@@ -169,7 +166,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			break
 		}
 
-		// Log received message
 		loggerManager.ServerLogger.Debug().
 			Int("messageType", messageType).
 			Str("message", string(message)).
@@ -187,7 +183,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 				Str("message", string(message)).
 				Msg("Failed to unmarshal message")
 
-			// Send error response to client
 			errorResponse := MessageResponse{
 				Type:    "error",
 				Content: "Invalid message format",
@@ -198,10 +193,8 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			continue
 		}
 
-		// Handle different message types
 		switch wsMessage.Type {
 		case "message":
-			// Create timeout context for database operation
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
@@ -243,7 +236,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 				Uint("messageID", chatMessage.ID).
 				Msg("Successfully saved chat message")
 
-			// Create success response
 			response := MessageResponse{
 				Type:      "message",
 				MessageID: chatMessage.ID,
@@ -253,7 +245,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 				Status:    "sent",
 			}
 
-			// Send to sender with retry
 			for retries := 0; retries < 3; retries++ {
 				if err := sendWebSocketResponse(loggerManager, client.Conn, response); err != nil {
 					if retries == 2 {
@@ -268,7 +259,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 				break
 			}
 
-			// Send to recipients with connection check
 			recipients := h.manager.GetClientsByUserID(client.RecipientID)
 			for _, recipient := range recipients {
 				if recipient.Conn != nil {
@@ -291,7 +281,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			}
 
 		case "ping":
-			// Update ping response sending
 			if err := sendWebSocketResponse(loggerManager, client.Conn, MessageResponse{
 				Type:      "pong",
 				MessageID: 1,
@@ -313,7 +302,6 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 			}
 			responseBytes, _ := json.Marshal(response)
 
-			// Send typing status to recipients
 			recipients := h.manager.GetClientsByUserID(client.RecipientID)
 			for _, recipient := range recipients {
 				select {
@@ -329,7 +317,7 @@ func (h *WebSocketHandler) readPump(client *wsManager.Client, ctx context.Contex
 
 func (h *WebSocketHandler) writePump(client *wsManager.Client) {
 	loggerManager := logger.GetLogger()
-	ticker := time.NewTicker(30 * time.Second) // Reduced from 54 to 30 seconds
+	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
 		client.Conn.Close()

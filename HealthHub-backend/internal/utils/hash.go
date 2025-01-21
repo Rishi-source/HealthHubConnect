@@ -27,7 +27,6 @@ var (
 	salt              = env.Hash.HmacSecret
 )
 
-// HashPassword creates a bcrypt hash of a password
 func HashPassword(password string) (string, error) {
 	if password == "" {
 		return "", fmt.Errorf("password cannot be empty")
@@ -42,7 +41,6 @@ func HashPassword(password string) (string, error) {
 	return string(hashedBytes), nil
 }
 
-// ComparePassword compares a password with a hash
 func ComparePassword(password, hash string) error {
 	if password == "" || hash == "" {
 		log.Printf("Empty password or hash received: pwd_len=%d, hash_len=%d", len(password), len(hash))
@@ -63,7 +61,6 @@ func ComparePassword(password, hash string) error {
 	return nil
 }
 
-// CreateHMAC creates an HMAC hash of data using SHA-256
 func CreateHMAC(data string) (string, error) {
 	if data == "" {
 		return "", ErrEmptyData
@@ -78,7 +75,6 @@ func CreateHMAC(data string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// VerifyHMAC verifies an HMAC hash
 func VerifyHMAC(data string, hash string) error {
 	if data == "" || hash == "" {
 		return ErrEmptyData
@@ -99,7 +95,6 @@ func VerifyHMAC(data string, hash string) error {
 	return nil
 }
 
-// HashWithSalt adds a salt to data before hashing
 func HashWithSalt(data string) (string, error) {
 	if data == "" {
 		return "", ErrEmptyData
@@ -108,10 +103,8 @@ func HashWithSalt(data string) (string, error) {
 		return "", ErrEmptySecret
 	}
 
-	// Combine data and salt
 	saltedData := data + salt
 
-	// Hash using bcrypt
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(saltedData), defaultBcryptCost)
 	if err != nil {
 		return "", ErrHashFailed
@@ -120,13 +113,11 @@ func HashWithSalt(data string) (string, error) {
 	return string(hashedBytes), nil
 }
 
-// CompareHashWithSalt compares data with a salted hash
 func CompareHashWithSalt(data string, hash string) error {
 	if data == "" || salt == "" || hash == "" {
 		return ErrEmptyData
 	}
 
-	// Combine data and salt
 	saltedData := data + salt
 
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(saltedData))

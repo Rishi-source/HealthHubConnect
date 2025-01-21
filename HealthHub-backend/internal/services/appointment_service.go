@@ -1,7 +1,7 @@
 package services
 
 import (
-	e "HealthHubConnect/internal/errors" // Add this import
+	e "HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/repositories"
 	"context"
@@ -147,7 +147,6 @@ func (s *appointmentService) GetDoctorAvailability(doctorID uint) ([]models.Doct
 }
 
 func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([]models.TimeSlot, error) {
-	// Get doctor's schedule
 	schedule, err := s.doctorRepo.GetScheduleWithoutValidation(context.Background(), doctorID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -197,7 +196,6 @@ func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([
 	return availableSlots, nil
 }
 
-// Update helper function signature if needed
 func isSlotAvailable(slot models.TimeSlot, appointments []models.Appointment) bool {
 	for _, apt := range appointments {
 		if (slot.StartTime.Before(apt.EndTime) || slot.StartTime.Equal(apt.EndTime)) &&
@@ -215,7 +213,7 @@ func (s *appointmentService) ValidateAppointmentTime(doctorID uint, date time.Ti
 	}
 
 	// Parse and validate against doctor's schedule
-	// Add implementation here
+	// will do when i get time not important for now
 
 	return nil
 }

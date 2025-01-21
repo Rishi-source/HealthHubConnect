@@ -125,7 +125,6 @@ func (h *HospitalHandler) DebugNearbyPlaces(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Pretty print the response
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "    ")

@@ -67,7 +67,7 @@ type Investigation struct {
 }
 
 type FollowUp struct {
-	Description string    `json:"description"` // To store simple string follow-up
+	Description string    `json:"description"`
 	Date        time.Time `json:"date,omitempty"`
 	Type        string    `json:"type,omitempty"`
 	Duration    int       `json:"duration,omitempty"`

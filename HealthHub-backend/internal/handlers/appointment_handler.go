@@ -46,14 +46,12 @@ func (h *AppointmentHandler) CreateAppointment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Create appointment
 	appointment, err := req.ToAppointment(userID)
 	if err != nil {
 		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
 		return
 	}
 
-	// Verify the doctor exists before creating appointment
 	if _, err := h.userRepository.FindByID(r.Context(), req.DoctorID); err != nil {
 		GenerateErrorResponse(&w, e.NewNotFoundError("doctor not found"))
 		return
@@ -81,7 +79,6 @@ func (h *AppointmentHandler) UpdateAppointmentStatus(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Validate doctor access
 	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
@@ -119,7 +116,6 @@ func (h *AppointmentHandler) GetAppointmentStatus(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Check if the user has access to this appointment
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
 		GenerateErrorResponse(&w, err)
@@ -127,7 +123,6 @@ func (h *AppointmentHandler) GetAppointmentStatus(w http.ResponseWriter, r *http
 	}
 
 	if appointment.PatientID != userID {
-		// If not patient, check if doctor
 		if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil || appointment.DoctorID != userID {
 			GenerateErrorResponse(&w, e.NewForbiddenError("not authorized to view this appointment"))
 			return
@@ -250,7 +245,6 @@ func (h *AppointmentHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Basic check if doctor exists in system
 	_, err = h.userRepository.FindByID(r.Context(), uint(doctorID))
 	if err != nil {
 		GenerateErrorResponse(&w, e.NewNotFoundError("doctor not found"))
@@ -289,7 +283,6 @@ func (h *AppointmentHandler) GetUpcomingAppointments(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Validate doctor access
 	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
@@ -311,7 +304,7 @@ func (h *AppointmentHandler) GetPastAppointments(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Validate doctor access
+	//check doctor access(wasnt working earlier)
 	if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), userID); err != nil {
 		GenerateErrorResponse(&w, err)
 		return
@@ -343,7 +336,7 @@ func (h *AppointmentHandler) GetMyUpcomingAppointments(w http.ResponseWriter, r 
 		"appointments": appointments,
 		"count":        len(appointments),
 		"message":      "Upcoming appointments retrieved successfully",
-		"user_id":      userID, // Add this for debugging
+		"user_id":      userID, // for debugging Todo: remove in prod(dont forget)
 	})
 }
 
@@ -536,7 +529,7 @@ func (h *AppointmentHandler) MarkNoShow(w http.ResponseWriter, r *http.Request) 
 	GenerateResponse(&w, http.StatusOK, map[string]string{"message": "Appointment marked as no-show"})
 }
 
-// // Helper function to get userID from context
+// // Helper function to get userID from context (just checking if its workin in utils)
 // func getUserIDFromContext(r *http.Request) (uint, error) {
 // 	userID := r.Context().Value("userID")
 // 	if userID == nil {

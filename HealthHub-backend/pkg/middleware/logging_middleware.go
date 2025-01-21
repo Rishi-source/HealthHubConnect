@@ -50,13 +50,13 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		logEvent.Msg("Incoming request")
 
-		// If it's a WebSocket request, don't wrap the ResponseWriter
+		// If it's a WebSocket request don't wrap the ResponseWriter
 		if isWebSocketRequest(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// For regular HTTP requests, use the custom response writer
+		// For regular HTTP requests use the custom response writer
 		rw := &responseWriter{w, http.StatusOK}
 		next.ServeHTTP(rw, r)
 

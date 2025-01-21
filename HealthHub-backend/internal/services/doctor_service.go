@@ -303,7 +303,6 @@ func (s *DoctorService) CreateBill(ctx context.Context, appointmentID uint, doct
 	taxAmount := (subTotal * billReq.TaxRate) / 100
 	totalAmount := subTotal + taxAmount - billReq.DiscountAmount
 
-	// Parse due date from string
 	dueDate, err := time.Parse("2006-01-02", billReq.DueDate)
 	if err != nil {
 		return nil, e.NewValidationError("invalid due date format")
@@ -319,12 +318,11 @@ func (s *DoctorService) CreateBill(ctx context.Context, appointmentID uint, doct
 		DiscountAmount: billReq.DiscountAmount,
 		TotalAmount:    totalAmount,
 		Status:         models.BillStatusPending,
-		DueDate:        dueDate, // Use the parsed date
+		DueDate:        dueDate,
 		Notes:          billReq.Notes,
 		PaymentMethod:  billReq.PaymentMethod,
 	}
 
-	// Convert request items to BillItems
 	for i, item := range billReq.Items {
 		itemTotal := float64(item.Quantity) * item.UnitPrice
 		itemTaxAmount := itemTotal * (item.TaxRate / 100)

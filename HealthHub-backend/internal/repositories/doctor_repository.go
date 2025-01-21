@@ -331,20 +331,16 @@ func (r *DoctorRepository) IsPatientOfDoctor(ctx context.Context, doctorID, pati
 	return count > 0
 }
 
-// Bill related methods
 func (r *DoctorRepository) CreateBill(ctx context.Context, bill *models.Bill) error {
-	// Generate bill number
 	billNumber := fmt.Sprintf("BILL-%d-%s", bill.DoctorID, time.Now().Format("20060102150405"))
 	bill.BillNumber = billNumber
 	bill.IssuedAt = time.Now()
 
-	// Marshal items to JSON string
 	itemsJSON, err := json.Marshal(bill.Items)
 	if err != nil {
 		return err
 	}
 
-	// Create a map for updates
 	billData := map[string]interface{}{
 		"bill_number":     bill.BillNumber,
 		"appointment_id":  bill.AppointmentID,
@@ -358,7 +354,7 @@ func (r *DoctorRepository) CreateBill(ctx context.Context, bill *models.Bill) er
 		"due_date":        bill.DueDate,
 		"notes":           bill.Notes,
 		"payment_method":  bill.PaymentMethod,
-		"items":           string(itemsJSON), // Store items as JSON string
+		"items":           string(itemsJSON),
 		"issued_at":       bill.IssuedAt,
 	}
 
@@ -384,10 +380,8 @@ func (r *DoctorRepository) GetBillByAppointmentID(ctx context.Context, appointme
 		return nil, err
 	}
 
-	// Copy all fields except Items and PaymentDetails
 	bill = rawBill.Bill
 
-	// Parse items JSON
 	if rawBill.RawItems != "" {
 		var items []models.BillItem
 		if err := json.Unmarshal([]byte(rawBill.RawItems), &items); err != nil {
@@ -396,7 +390,6 @@ func (r *DoctorRepository) GetBillByAppointmentID(ctx context.Context, appointme
 		bill.Items = items
 	}
 
-	// Parse payment details JSON
 	if rawBill.RawPaymentDetails != "" {
 		bill.PaymentDetails = json.RawMessage(rawBill.RawPaymentDetails)
 	}
@@ -405,13 +398,11 @@ func (r *DoctorRepository) GetBillByAppointmentID(ctx context.Context, appointme
 }
 
 func (r *DoctorRepository) UpdateBill(ctx context.Context, appointmentID uint, billUpdate *models.Bill) error {
-	// Marshal PaymentDetails to JSON string
 	paymentDetailsJSON, err := json.Marshal(billUpdate.PaymentDetails)
 	if err != nil {
 		return err
 	}
 
-	// Create update map with serialized fields
 	updates := map[string]interface{}{
 		"status":          billUpdate.Status,
 		"payment_method":  billUpdate.PaymentMethod,
@@ -450,7 +441,6 @@ func (r *DoctorRepository) GetBillsByDoctorID(ctx context.Context, doctorID uint
 
 func (r *DoctorRepository) UpdatePatientHealthProfile(ctx context.Context, healthProfile *models.HealthProfile) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// First try to update existing profile
 		result := tx.Where("user_id = ?", healthProfile.UserID).
 			Updates(healthProfile)
 

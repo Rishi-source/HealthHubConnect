@@ -27,14 +27,13 @@ func NewConferenceService() ConferenceService {
 }
 
 func (s *conferenceService) CreateMeeting(appointment *models.Appointment) (*models.ConferenceDetails, error) {
-	// In a real implementation, you would make API calls to your video conferencing provider
-	// This is a mock implementation
+
 	meetingID := fmt.Sprintf("%d-%d-%d", appointment.DoctorID, appointment.PatientID, time.Now().Unix())
 
 	details := &models.ConferenceDetails{
 		Provider:  s.provider,
 		MeetingID: meetingID,
-		JoinURL:   fmt.Sprintf("https://zoom.us/j/%s", meetingID),
+		JoinURL:   fmt.Sprintf("https://zoom.us/j/%s", meetingID), //both meet and zoom service but zoom apis cost money so using gmeet for now
 		HostURL:   fmt.Sprintf("https://zoom.us/s/%s", meetingID),
 		Password:  fmt.Sprintf("pass%d", time.Now().Unix()),
 		StartTime: appointment.StartTime.Format(time.RFC3339),
