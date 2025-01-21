@@ -193,6 +193,12 @@ func (r *DoctorRepository) GetSchedule(ctx context.Context, doctorID uint) (*mod
 	return &schedule, nil
 }
 
+func (r *DoctorRepository) GetScheduleWithoutValidation(ctx context.Context, doctorID uint) (*models.DoctorSchedule, error) {
+	var schedule models.DoctorSchedule
+	err := r.db.Where("doctor_id = ?", doctorID).First(&schedule).Error
+	return &schedule, err
+}
+
 func (r *DoctorRepository) SaveBulkAvailability(ctx context.Context, availabilities []models.DoctorAvailability) error {
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -323,4 +329,377 @@ func (r *DoctorRepository) IsPatientOfDoctor(ctx context.Context, doctorID, pati
 		Where("doctor_id = ? AND patient_id = ?", doctorID, patientID).
 		Count(&count)
 	return count > 0
+}
+
+// Bill related methods
+func (r *DoctorRepository) CreateBill(ctx context.Context, bill *models.Bill) error {
+	// Generate bill number
+	billNumber := fmt.Sprintf("BILL-%d-%s", bill.DoctorID, time.Now().Format("20060102150405"))
+	bill.BillNumber = billNumber
+	bill.IssuedAt = time.Now()
+
+	// Marshal items to JSON string
+	itemsJSON, err := json.Marshal(bill.Items)
+	if err != nil {
+		return err
+	}
+
+	// Create a map for updates
+	billData := map[string]interface{}{
+		"bill_number":     bill.BillNumber,
+		"appointment_id":  bill.AppointmentID,
+		"patient_id":      bill.PatientID,
+		"doctor_id":       bill.DoctorID,
+		"sub_total":       bill.SubTotal,
+		"tax_amount":      bill.TaxAmount,
+		"discount_amount": bill.DiscountAmount,
+		"total_amount":    bill.TotalAmount,
+		"status":          bill.Status,
+		"due_date":        bill.DueDate,
+		"notes":           bill.Notes,
+		"payment_method":  bill.PaymentMethod,
+		"items":           string(itemsJSON), // Store items as JSON string
+		"issued_at":       bill.IssuedAt,
+	}
+
+	return r.db.WithContext(ctx).Model(&models.Bill{}).Create(billData).Error
+}
+
+func (r *DoctorRepository) GetBillByAppointmentID(ctx context.Context, appointmentID uint) (*models.Bill, error) {
+	var bill models.Bill
+	var rawBill struct {
+		models.Bill
+		RawItems          string `gorm:"column:items"`
+		RawPaymentDetails string `gorm:"column:payment_details"`
+	}
+
+	err := r.db.WithContext(ctx).
+		Where("appointment_id = ?", appointmentID).
+		First(&rawBill).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.NewNotFoundError("bill not found")
+		}
+		return nil, err
+	}
+
+	// Copy all fields except Items and PaymentDetails
+	bill = rawBill.Bill
+
+	// Parse items JSON
+	if rawBill.RawItems != "" {
+		var items []models.BillItem
+		if err := json.Unmarshal([]byte(rawBill.RawItems), &items); err != nil {
+			return nil, fmt.Errorf("error unmarshaling bill items: %v", err)
+		}
+		bill.Items = items
+	}
+
+	// Parse payment details JSON
+	if rawBill.RawPaymentDetails != "" {
+		bill.PaymentDetails = json.RawMessage(rawBill.RawPaymentDetails)
+	}
+
+	return &bill, nil
+}
+
+func (r *DoctorRepository) UpdateBill(ctx context.Context, appointmentID uint, billUpdate *models.Bill) error {
+	// Marshal PaymentDetails to JSON string
+	paymentDetailsJSON, err := json.Marshal(billUpdate.PaymentDetails)
+	if err != nil {
+		return err
+	}
+
+	// Create update map with serialized fields
+	updates := map[string]interface{}{
+		"status":          billUpdate.Status,
+		"payment_method":  billUpdate.PaymentMethod,
+		"payment_details": string(paymentDetailsJSON),
+		"payment_date":    billUpdate.PaymentDate,
+		"transaction_id":  billUpdate.TransactionID,
+		"paid_amount":     billUpdate.PaidAmount,
+		"paid_at":         time.Now(),
+	}
+
+	return r.db.WithContext(ctx).
+		Model(&models.Bill{}).
+		Where("appointment_id = ?", appointmentID).
+		Updates(updates).Error
+}
+
+func (r *DoctorRepository) GetBillsByDoctorID(ctx context.Context, doctorID uint, page, limit int) ([]models.Bill, int64, error) {
+	var bills []models.Bill
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.Bill{}).
+		Where("doctor_id = ?", doctorID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.
+		Order("created_at desc").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&bills).Error
+
+	return bills, total, err
+}
+
+func (r *DoctorRepository) CreatePrescription(ctx context.Context, prescription *models.Prescription) error {
+	// Begin a transaction
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Defer rollback in case anything fails
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Convert slices and structs to JSON strings
+	diagnosisJSON, err := json.Marshal(prescription.Diagnosis)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	complaintsJSON, err := json.Marshal(prescription.ChiefComplaints)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	vitalsJSON, err := json.Marshal(prescription.Vitals)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	medicationsJSON, err := json.Marshal(prescription.Medications)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	investigationsJSON, err := json.Marshal(prescription.Investigations)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	followUpJSON, err := json.Marshal(prescription.FollowUp)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	patientHistoryJSON, err := json.Marshal(prescription.PatientHistory)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Create a map for inserting the data
+	prescriptionData := map[string]interface{}{
+		"appointment_id":      prescription.AppointmentID,
+		"patient_id":          prescription.PatientID,
+		"doctor_id":           prescription.DoctorID,
+		"diagnosis":           string(diagnosisJSON),
+		"chief_complaints":    string(complaintsJSON),
+		"vitals":              string(vitalsJSON),
+		"medications":         string(medicationsJSON),
+		"investigations":      string(investigationsJSON),
+		"advice":              prescription.Advice,
+		"follow_up":           string(followUpJSON),
+		"status":              string(prescription.Status),
+		"expiry_date":         prescription.ExpiryDate,
+		"doctor_notes":        prescription.DoctorNotes,
+		"is_digitally_signed": prescription.IsDigitallySigned,
+		"signed_at":           prescription.SignedAt,
+		"patient_history":     string(patientHistoryJSON),
+	}
+
+	// Execute the insert within the transaction
+	if err := tx.Table("prescriptions").Create(prescriptionData).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Get the created prescription's ID and timestamps
+	var created struct {
+		ID        uint      `gorm:"column:id"`
+		CreatedAt time.Time `gorm:"column:created_at"`
+		UpdatedAt time.Time `gorm:"column:updated_at"`
+	}
+
+	if err := tx.Table("prescriptions").
+		Where("appointment_id = ?", prescription.AppointmentID).
+		Select("id, created_at, updated_at").
+		First(&created).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Update the original prescription's fields
+	prescription.ID = created.ID
+	prescription.CreatedAt = created.CreatedAt
+	prescription.UpdatedAt = created.UpdatedAt
+
+	// Commit the transaction
+	return tx.Commit().Error
+}
+
+// Add a corresponding GetPrescription method that handles JSON unmarshaling
+func (r *DoctorRepository) GetPrescription(ctx context.Context, appointmentID uint) (*models.Prescription, error) {
+	var dbPrescription struct {
+		models.Base
+		AppointmentID     uint            `gorm:"not null;index"`
+		PatientID         uint            `gorm:"not null;index"`
+		DoctorID          uint            `gorm:"not null;index"`
+		Diagnosis         json.RawMessage `gorm:"type:json"`
+		ChiefComplaints   json.RawMessage `gorm:"type:json"`
+		Vitals            json.RawMessage `gorm:"type:json"`
+		Medications       json.RawMessage `gorm:"type:json"`
+		Investigations    json.RawMessage `gorm:"type:json"`
+		Advice            string          `gorm:"type:text"`
+		FollowUp          json.RawMessage `gorm:"type:json"`
+		Status            string          `gorm:"type:varchar(20)"`
+		ExpiryDate        *time.Time
+		DoctorNotes       string `gorm:"type:text"`
+		IsDigitallySigned bool
+		SignedAt          *time.Time
+		PatientHistory    json.RawMessage `gorm:"type:json"`
+	}
+
+	if err := r.db.Where("appointment_id = ?", appointmentID).First(&dbPrescription).Error; err != nil {
+		return nil, err
+	}
+
+	prescription := &models.Prescription{
+		Base:              dbPrescription.Base,
+		AppointmentID:     dbPrescription.AppointmentID,
+		PatientID:         dbPrescription.PatientID,
+		DoctorID:          dbPrescription.DoctorID,
+		Advice:            dbPrescription.Advice,
+		Status:            models.PrescriptionStatus(dbPrescription.Status),
+		ExpiryDate:        dbPrescription.ExpiryDate,
+		DoctorNotes:       dbPrescription.DoctorNotes,
+		IsDigitallySigned: dbPrescription.IsDigitallySigned,
+		SignedAt:          dbPrescription.SignedAt,
+	}
+
+	// Unmarshal JSON fields
+	json.Unmarshal(dbPrescription.Diagnosis, &prescription.Diagnosis)
+	json.Unmarshal(dbPrescription.ChiefComplaints, &prescription.ChiefComplaints)
+	json.Unmarshal(dbPrescription.Vitals, &prescription.Vitals)
+	json.Unmarshal(dbPrescription.Medications, &prescription.Medications)
+	json.Unmarshal(dbPrescription.Investigations, &prescription.Investigations)
+	json.Unmarshal(dbPrescription.FollowUp, &prescription.FollowUp)
+	json.Unmarshal(dbPrescription.PatientHistory, &prescription.PatientHistory)
+
+	return prescription, nil
+}
+
+func (r *DoctorRepository) UpdatePrescription(ctx context.Context, appointmentID uint, prescription *models.Prescription) error {
+	return r.db.WithContext(ctx).
+		Where("appointment_id = ?", appointmentID).
+		Updates(prescription).Error
+}
+
+func (r *DoctorRepository) UpdatePatientHealthProfile(ctx context.Context, healthProfile *models.HealthProfile) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// First try to update existing profile
+		result := tx.Where("user_id = ?", healthProfile.UserID).
+			Updates(healthProfile)
+
+		if result.RowsAffected == 0 {
+			// If no existing profile, create new one
+			return tx.Create(healthProfile).Error
+		}
+
+		return result.Error
+	})
+}
+
+func (r *DoctorRepository) SaveBillingSettings(ctx context.Context, doctorID uint, settings json.RawMessage) error {
+	return r.db.WithContext(ctx).
+		Model(&models.DoctorProfile{}).
+		Where("user_id = ?", doctorID).
+		Update("billing_settings", settings).Error
+}
+
+func (r *DoctorRepository) GetPrescriptionByAppointmentID(ctx context.Context, appointmentID uint) (*models.Prescription, error) {
+	var dbPrescription struct {
+		models.Base
+		AppointmentID     uint            `gorm:"not null;index"`
+		PatientID         uint            `gorm:"not null;index"`
+		DoctorID          uint            `gorm:"not null;index"`
+		Diagnosis         json.RawMessage `gorm:"type:json"`
+		ChiefComplaints   json.RawMessage `gorm:"type:json"`
+		Vitals            json.RawMessage `gorm:"type:json"`
+		Medications       json.RawMessage `gorm:"type:json"`
+		Investigations    json.RawMessage `gorm:"type:json"`
+		Advice            string          `gorm:"type:text"`
+		FollowUp          json.RawMessage `gorm:"type:json"`
+		Status            string          `gorm:"type:varchar(20)"`
+		ExpiryDate        *time.Time
+		DoctorNotes       string `gorm:"type:text"`
+		IsDigitallySigned bool
+		SignedAt          *time.Time
+		PatientHistory    json.RawMessage `gorm:"type:json"`
+	}
+
+	if err := r.db.WithContext(ctx).
+		Table("prescriptions").
+		Where("appointment_id = ?", appointmentID).
+		First(&dbPrescription).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.NewNotFoundError("prescription not found")
+		}
+		return nil, err
+	}
+
+	prescription := &models.Prescription{
+		Base:              dbPrescription.Base,
+		AppointmentID:     dbPrescription.AppointmentID,
+		PatientID:         dbPrescription.PatientID,
+		DoctorID:          dbPrescription.DoctorID,
+		Advice:            dbPrescription.Advice,
+		Status:            models.PrescriptionStatus(dbPrescription.Status),
+		ExpiryDate:        dbPrescription.ExpiryDate,
+		DoctorNotes:       dbPrescription.DoctorNotes,
+		IsDigitallySigned: dbPrescription.IsDigitallySigned,
+		SignedAt:          dbPrescription.SignedAt,
+	}
+
+	// Unmarshal JSON fields
+	if err := json.Unmarshal(dbPrescription.Diagnosis, &prescription.Diagnosis); err != nil {
+		return nil, fmt.Errorf("error unmarshaling diagnosis: %v", err)
+	}
+	if err := json.Unmarshal(dbPrescription.ChiefComplaints, &prescription.ChiefComplaints); err != nil {
+		return nil, fmt.Errorf("error unmarshaling chief complaints: %v", err)
+	}
+	if err := json.Unmarshal(dbPrescription.Vitals, &prescription.Vitals); err != nil {
+		return nil, fmt.Errorf("error unmarshaling vitals: %v", err)
+	}
+	if err := json.Unmarshal(dbPrescription.Medications, &prescription.Medications); err != nil {
+		return nil, fmt.Errorf("error unmarshaling medications: %v", err)
+	}
+	if err := json.Unmarshal(dbPrescription.Investigations, &prescription.Investigations); err != nil {
+		return nil, fmt.Errorf("error unmarshaling investigations: %v", err)
+	}
+	if err := json.Unmarshal(dbPrescription.FollowUp, &prescription.FollowUp); err != nil {
+		return nil, fmt.Errorf("error unmarshaling follow up: %v", err)
+	}
+	if err := json.Unmarshal(dbPrescription.PatientHistory, &prescription.PatientHistory); err != nil {
+		return nil, fmt.Errorf("error unmarshaling patient history: %v", err)
+	}
+
+	return prescription, nil
 }

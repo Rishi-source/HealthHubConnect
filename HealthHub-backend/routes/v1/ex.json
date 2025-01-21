@@ -1,0 +1,217 @@
+{
+    "example": {
+        "message": "This is an example JSON file",
+        "status": 200,
+        "data": {
+            "id": 1,
+            "name": "Sample Name"
+        }
+    },
+    "billing_settings": {
+        "consultation_fee": 500,
+        "currency": "INR",
+        "payment_methods": ["UPI", "Card", "NetBanking"],
+        "tax_percentage": 18,
+        "cancellation_fee": 200
+    },
+    "bill": {
+        "appointment_id": "apt123",
+        "patient_id": "pat456",
+        "doctor_id": "doc789",
+        "bill_date": "2024-01-20T10:30:00Z",
+        "items": [
+            {
+                "description": "Consultation Fee",
+                "amount": 500
+            },
+            {
+                "description": "Medicine Cost",
+                "amount": 300
+            }
+        ],
+        "tax_amount": 144,
+        "total_amount": 944,
+        "payment_status": "PENDING",
+        "payment_method": "UPI"
+    },
+    "prescription": {
+        "appointment_id": "apt123",
+        "patient_id": "pat456",
+        "doctor_id": "doc789",
+        "prescription_date": "2024-01-20T10:30:00Z",
+        "diagnosis": "Common Cold",
+        "medicines": [
+            {
+                "name": "Paracetamol",
+                "dosage": "1-0-1",
+                "duration": "5 days",
+                "instructions": "After food"
+            }
+        ],
+        "advice": "Take rest and drink plenty of water",
+        "follow_up_date": "2024-01-25T10:30:00Z"
+    },
+    "info": {
+        "name": "HealthHub Doctor API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Billing Settings",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": "{{base_url}}/doctor/billing-settings",
+                "body": {
+                    "mode": "raw",
+                    "raw": {
+                        "consultation_fee": 500,
+                        "currency": "INR",
+                        "payment_methods": ["UPI", "Card", "NetBanking"],
+                        "tax_percentage": 18,
+                        "cancellation_fee": 200
+                    }
+                }
+            },
+            "response": {
+                "status": "200 OK",
+                "body": {
+                    "status": "success",
+                    "message": "Billing settings saved successfully",
+                    "data": {
+                        "consultation_fee": 500,
+                        "currency": "INR",
+                        "payment_methods": ["UPI", "Card", "NetBanking"],
+                        "tax_percentage": 18,
+                        "cancellation_fee": 200
+                    }
+                }
+            }
+        },
+        {
+            "name": "Create Bill",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": "{{base_url}}/doctor/appointments/{{appointment_id}}/bill",
+                "body": {
+                    "mode": "raw",
+                    "raw": {
+                        "items": [
+                            {
+                                "description": "Consultation Fee",
+                                "amount": 500
+                            },
+                            {
+                                "description": "Medicine Cost",
+                                "amount": 300
+                            }
+                        ],
+                        "payment_method": "UPI"
+                    }
+                }
+            },
+            "response": {
+                "status": "200 OK",
+                "body": {
+                    "status": "success",
+                    "message": "Bill created successfully",
+                    "data": {
+                        "bill_id": "bill123",
+                        "appointment_id": "apt123",
+                        "patient_id": "pat456",
+                        "doctor_id": "doc789",
+                        "bill_date": "2024-01-20T10:30:00Z",
+                        "items": [
+                            {
+                                "description": "Consultation Fee",
+                                "amount": 500
+                            },
+                            {
+                                "description": "Medicine Cost",
+                                "amount": 300
+                            }
+                        ],
+                        "tax_amount": 144,
+                        "total_amount": 944,
+                        "payment_status": "PENDING",
+                        "payment_method": "UPI"
+                    }
+                }
+            }
+        },
+        {
+            "name": "Create Prescription",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": "{{base_url}}/doctor/appointments/{{appointment_id}}/prescription",
+                "body": {
+                    "mode": "raw",
+                    "raw": {
+                        "diagnosis": "Common Cold",
+                        "medicines": [
+                            {
+                                "name": "Paracetamol",
+                                "dosage": "1-0-1",
+                                "duration": "5 days",
+                                "instructions": "After food"
+                            }
+                        ],
+                        "advice": "Take rest and drink plenty of water",
+                        "follow_up_date": "2024-01-25T10:30:00Z"
+                    }
+                }
+            },
+            "response": {
+                "status": "200 OK",
+                "body": {
+                    "status": "success",
+                    "message": "Prescription created successfully",
+                    "data": {
+                        "prescription_id": "pres123",
+                        "appointment_id": "apt123",
+                        "patient_id": "pat456",
+                        "doctor_id": "doc789",
+                        "prescription_date": "2024-01-20T10:30:00Z",
+                        "diagnosis": "Common Cold",
+                        "medicines": [
+                            {
+                                "name": "Paracetamol",
+                                "dosage": "1-0-1",
+                                "duration": "5 days",
+                                "instructions": "After food"
+                            }
+                        ],
+                        "advice": "Take rest and drink plenty of water",
+                        "follow_up_date": "2024-01-25T10:30:00Z"
+                    }
+                }
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8080/api/v1"
+        }
+    ]
+}

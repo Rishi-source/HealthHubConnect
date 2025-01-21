@@ -148,7 +148,7 @@ func (s *appointmentService) GetDoctorAvailability(doctorID uint) ([]models.Doct
 
 func (s *appointmentService) GetAvailableSlots(doctorID uint, date time.Time) ([]models.TimeSlot, error) {
 	// Get doctor's schedule
-	schedule, err := s.doctorRepo.GetSchedule(context.Background(), doctorID)
+	schedule, err := s.doctorRepo.GetScheduleWithoutValidation(context.Background(), doctorID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return []models.TimeSlot{}, e.NewNotFoundError("doctor schedule not found")

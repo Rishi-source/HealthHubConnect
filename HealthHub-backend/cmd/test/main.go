@@ -7,7 +7,7 @@ import (
 
 func main() {
 
-	tokenPair, _ := utils.GenerateTokenPair(7)
+	tokenPair, _ := utils.GenerateTokenPair(5)
 	fmt.Println(tokenPair.AccessToken)
 	// fmt.Println(tokenPair.RefreshToken)
 	// fmt.Println(utils.ExtractUserIDFromToken(tokenPair.AccessToken, env.Jwt.AccessTokenSecret))

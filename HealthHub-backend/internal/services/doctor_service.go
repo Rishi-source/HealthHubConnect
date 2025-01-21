@@ -80,7 +80,6 @@ func (s *DoctorService) generateAvailabilitySlots(doctorID uint, schedule models
 }
 
 func (s *DoctorService) SaveSchedule(ctx context.Context, doctorID uint, req *models.ScheduleRequest) error {
-	// Save the schedule as before
 	scheduleJSON, err := json.Marshal(req.Schedule)
 	if err != nil {
 		return err
@@ -96,19 +95,16 @@ func (s *DoctorService) SaveSchedule(ctx context.Context, doctorID uint, req *mo
 		Schedule: string(scheduleJSONString),
 	}
 
-	// Save the base schedule
 	if err := s.doctorRepo.SaveSchedule(ctx, schedule); err != nil {
 		return err
 	}
 
-	// Generate availability slots for the next 12 weeks
 	startDate := time.Now().Truncate(24 * time.Hour)
 	availabilities, err := s.generateAvailabilitySlots(doctorID, req.Schedule, startDate, 12)
 	if err != nil {
 		return err
 	}
 
-	// Save all availability slots
 	return s.doctorRepo.SaveBulkAvailability(ctx, availabilities)
 }
 
@@ -120,12 +116,10 @@ func (s *DoctorService) GetSchedule(ctx context.Context, doctorID uint) (*models
 
 	var parsedSchedule models.Schedule
 	if err := json.Unmarshal([]byte(schedule.Schedule), &parsedSchedule); err != nil {
-		// Try unmarshaling as a raw string first
 		var rawSchedule string
 		if err := json.Unmarshal([]byte(schedule.Schedule), &rawSchedule); err != nil {
 			return nil, err
 		}
-		// Then unmarshal the raw string into Schedule
 		if err := json.Unmarshal([]byte(rawSchedule), &parsedSchedule); err != nil {
 			return nil, err
 		}
@@ -141,31 +135,26 @@ func (s *DoctorService) GetSchedule(ctx context.Context, doctorID uint) (*models
 }
 
 func (s *DoctorService) ExtendAvailability(ctx context.Context, doctorID uint, weeksToAdd int) error {
-	// Get existing schedule
 	schedule, err := s.GetSchedule(ctx, doctorID)
 	if err != nil {
 		return err
 	}
 
-	// Find the last availability date
 	var lastAvailability models.DoctorAvailability
 	if err := s.doctorRepo.GetLastAvailabilityDate(ctx, doctorID, &lastAvailability); err != nil {
 		return err
 	}
 
-	// Generate new slots starting from the last availability date
 	startDate := lastAvailability.Date.AddDate(0, 0, 1)
 	availabilities, err := s.generateAvailabilitySlots(doctorID, schedule.Schedule, startDate, weeksToAdd)
 	if err != nil {
 		return err
 	}
 
-	// Save new availability slots
 	return s.doctorRepo.AddBulkAvailability(ctx, availabilities)
 }
 
 func (s *DoctorService) BlockSlot(ctx context.Context, doctorID uint, req *models.BlockSlotRequest) error {
-	// Parse date and times
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return e.NewValidationError("invalid date format")
@@ -181,13 +170,11 @@ func (s *DoctorService) BlockSlot(ctx context.Context, doctorID uint, req *model
 		return e.NewValidationError("invalid end time format")
 	}
 
-	// Convert to full datetime
 	slotStart := time.Date(date.Year(), date.Month(), date.Day(),
 		startTime.Hour(), startTime.Minute(), 0, 0, time.Local)
 	slotEnd := time.Date(date.Year(), date.Month(), date.Day(),
 		endTime.Hour(), endTime.Minute(), 0, 0, time.Local)
 
-	// Delete the availability slots for the specified time range
 	return s.doctorRepo.DeleteAvailabilitySlots(ctx, doctorID, date, slotStart, slotEnd)
 }
 
@@ -227,7 +214,6 @@ func (s *DoctorService) ListDoctors(ctx context.Context, filters map[string]inte
 }
 
 func (s *DoctorService) GetAvailableSlots(doctorID uint, date time.Time) ([]models.TimeSlot, error) {
-	// Get doctor's schedule
 	schedule, err := s.doctorRepo.GetSchedule(context.Background(), doctorID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -236,10 +222,9 @@ func (s *DoctorService) GetAvailableSlots(doctorID uint, date time.Time) ([]mode
 		return nil, fmt.Errorf("error getting doctor schedule: %v", err)
 	}
 
-	// Parse schedule and generate available slots
 	var parsedSchedule models.Schedule
 	if err := json.Unmarshal([]byte(schedule.Schedule), &parsedSchedule); err != nil {
-		// ... existing unmarshal code ...
+
 	}
 
 	dayOfWeek := strings.ToLower(date.Weekday().String())
@@ -248,7 +233,6 @@ func (s *DoctorService) GetAvailableSlots(doctorID uint, date time.Time) ([]mode
 		return []models.TimeSlot{}, e.NewNotFoundError("no slots available for this day")
 	}
 
-	// Get existing appointments
 	existingAppointments, err := s.appointmentRepo.GetAppointmentsByDoctorAndDate(doctorID, date)
 	if err != nil {
 		return nil, err
@@ -265,7 +249,6 @@ func (s *DoctorService) GetAvailableSlots(doctorID uint, date time.Time) ([]mode
 			Available: true,
 		}
 
-		// Check if slot is available (not booked)
 		if isSlotAvailable(slot, existingAppointments) {
 			availableSlots = append(availableSlots, slot)
 		}
@@ -293,4 +276,138 @@ func (s *DoctorService) ListPatients(ctx context.Context, doctorID uint, page, l
 		PerPage:     limit,
 		TotalPages:  totalPages,
 	}, nil
+}
+
+func (s *DoctorService) CreateBill(ctx context.Context, appointmentID uint, doctorID uint, billReq *models.BillRequest) (*models.Bill, error) {
+	appointment, err := s.appointmentRepo.GetAppointmentByID(appointmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	if appointment.DoctorID != doctorID {
+		return nil, e.NewForbiddenError("not authorized to create bill for this appointment")
+	}
+
+	var subTotal float64
+	for _, item := range billReq.Items {
+		itemTotal := float64(item.Quantity) * item.UnitPrice
+		subTotal += itemTotal
+	}
+
+	taxAmount := (subTotal * billReq.TaxRate) / 100
+	totalAmount := subTotal + taxAmount - billReq.DiscountAmount
+
+	// Parse due date from string
+	dueDate, err := time.Parse("2006-01-02", billReq.DueDate)
+	if err != nil {
+		return nil, e.NewValidationError("invalid due date format")
+	}
+
+	bill := &models.Bill{
+		AppointmentID:  appointmentID,
+		PatientID:      appointment.PatientID,
+		DoctorID:       doctorID,
+		Items:          make([]models.BillItem, len(billReq.Items)),
+		SubTotal:       subTotal,
+		TaxAmount:      taxAmount,
+		DiscountAmount: billReq.DiscountAmount,
+		TotalAmount:    totalAmount,
+		Status:         models.BillStatusPending,
+		DueDate:        dueDate, // Use the parsed date
+		Notes:          billReq.Notes,
+		PaymentMethod:  billReq.PaymentMethod,
+	}
+
+	// Convert request items to BillItems
+	for i, item := range billReq.Items {
+		itemTotal := float64(item.Quantity) * item.UnitPrice
+		itemTaxAmount := itemTotal * (item.TaxRate / 100)
+
+		bill.Items[i] = models.BillItem{
+			Description: item.Description,
+			Category:    item.Category,
+			Quantity:    item.Quantity,
+			UnitPrice:   item.UnitPrice,
+			TotalPrice:  itemTotal,
+			TaxRate:     item.TaxRate,
+			TaxAmount:   itemTaxAmount,
+		}
+	}
+
+	if err := s.doctorRepo.CreateBill(ctx, bill); err != nil {
+		return nil, err
+	}
+
+	return bill, nil
+}
+
+func (s *DoctorService) GetBill(ctx context.Context, appointmentID uint) (*models.Bill, error) {
+	return s.doctorRepo.GetBillByAppointmentID(ctx, appointmentID)
+}
+
+func (s *DoctorService) UpdateBill(ctx context.Context, appointmentID uint, billUpdate *models.Bill) error {
+	return s.doctorRepo.UpdateBill(ctx, appointmentID, billUpdate)
+}
+
+func (s *DoctorService) CreatePrescription(ctx context.Context, prescription *models.Prescription) (*models.Prescription, error) {
+	appointment, err := s.appointmentRepo.GetAppointmentByID(prescription.AppointmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// if appointment.DoctorID != prescription.DoctorID {
+	// 	return nil, e.NewForbiddenError("not authorized to create prescription for this appointment")
+	// }
+
+	prescription.PatientID = appointment.PatientID
+	prescription.Status = models.PrescriptionStatusActive
+
+	if err := s.doctorRepo.CreatePrescription(ctx, prescription); err != nil {
+		return nil, err
+	}
+
+	healthProfile := &models.HealthProfile{
+		UserID: prescription.PatientID,
+	}
+
+	for _, med := range prescription.Medications {
+		duration := 0
+		if med.Duration != "" {
+			_, err := fmt.Sscanf(med.Duration, "%d", &duration)
+			if err != nil {
+				log.Printf("Error parsing duration: %v", err)
+			}
+		}
+
+		healthProfile.Medication = append(healthProfile.Medication, models.Medication{
+			UserID:              prescription.PatientID,
+			Name:                med.Name,
+			GenericName:         med.GenericName,
+			Dosage:              med.Dosage,
+			Frequency:           med.Frequency,
+			Duration:            duration,
+			RouteOfAdmin:        med.Route,
+			StartDate:           time.Now(),
+			IsActive:            true,
+			SpecialInstructions: med.Instructions,
+		})
+	}
+
+	if err := s.doctorRepo.UpdatePatientHealthProfile(ctx, healthProfile); err != nil {
+		log.Printf("Error updating health profile: %v", err)
+	}
+
+	return prescription, nil
+}
+
+func (s *DoctorService) GetPrescription(ctx context.Context, appointmentID uint) (*models.Prescription, error) {
+	return s.doctorRepo.GetPrescriptionByAppointmentID(ctx, appointmentID)
+}
+
+func (s *DoctorService) UpdatePrescription(ctx context.Context, appointmentID uint, prescription *models.Prescription) error {
+	return s.doctorRepo.UpdatePrescription(ctx, appointmentID, prescription)
+}
+
+func (s *DoctorService) SaveBillingSettings(ctx context.Context, doctorID uint, settings json.RawMessage) error {
+	return s.doctorRepo.SaveBillingSettings(ctx, doctorID, settings)
 }

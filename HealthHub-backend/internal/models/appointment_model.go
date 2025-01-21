@@ -59,30 +59,32 @@ const (
 )
 
 type Appointment struct {
-	ID          uint              `json:"id" gorm:"primaryKey"`
-	PatientID   uint              `json:"patient_id" gorm:"not null"`
-	Patient     User              `json:"patient" gorm:"foreignKey:PatientID"`
-	DoctorID    uint              `json:"doctor_id" gorm:"not null"`
-	Doctor      User              `json:"doctor" gorm:"foreignKey:DoctorID"`
-	Type        AppointmentType   `json:"type" gorm:"type:varchar(20);not null"`
-	Date        time.Time         `json:"date" gorm:"not null"`
-	StartTime   time.Time         `json:"start_time" gorm:"not null"`
-	EndTime     time.Time         `json:"end_time" gorm:"not null"`
-	Status      AppointmentStatus `json:"status" gorm:"type:varchar(20);default:'PENDING'"`
-	Description string            `json:"description"`
-	Address     string            `json:"address,omitempty"`
-	Latitude    float64           `json:"latitude,omitempty"`
-	Longitude   float64           `json:"longitude,omitempty"`
-	Duration    time.Duration     `json:"duration"`
-	Reason      string            `json:"reason" gorm:"type:text"`
-	Notes       string            `json:"notes" gorm:"type:text"`
-	IsCancelled bool              `json:"is_cancelled" gorm:"default:false"`
-	CancelledAt *time.Time        `json:"cancelled_at"`
-	CancelledBy *uint             `json:"cancelled_by"`
-	Reminder    bool              `json:"reminder" gorm:"default:true"`
-	MeetLink    string            `json:"meet_link,omitempty" gorm:"type:text"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID           uint              `json:"id" gorm:"primaryKey"`
+	PatientID    uint              `json:"patient_id" gorm:"not null"`
+	Patient      User              `json:"patient" gorm:"foreignKey:PatientID"`
+	DoctorID     uint              `json:"doctor_id" gorm:"not null"`
+	Doctor       User              `json:"doctor" gorm:"foreignKey:DoctorID"`
+	Type         AppointmentType   `json:"type" gorm:"type:varchar(20);not null"`
+	Date         time.Time         `json:"date" gorm:"not null"`
+	StartTime    time.Time         `json:"start_time" gorm:"not null"`
+	EndTime      time.Time         `json:"end_time" gorm:"not null"`
+	Status       AppointmentStatus `json:"status" gorm:"type:varchar(20);default:'PENDING'"`
+	Description  string            `json:"description"`
+	Address      string            `json:"address,omitempty"`
+	Latitude     float64           `json:"latitude,omitempty"`
+	Longitude    float64           `json:"longitude,omitempty"`
+	Duration     time.Duration     `json:"duration"`
+	Reason       string            `json:"reason" gorm:"type:text"`
+	Notes        string            `json:"notes" gorm:"type:text"`
+	IsCancelled  bool              `json:"is_cancelled" gorm:"default:false"`
+	CancelledAt  *time.Time        `json:"cancelled_at"`
+	CancelledBy  *uint             `json:"cancelled_by"`
+	Reminder     bool              `json:"reminder" gorm:"default:true"`
+	MeetLink     string            `json:"meet_link,omitempty" gorm:"type:text"`
+	Prescription *Prescription     `json:"prescription,omitempty" gorm:"foreignKey:AppointmentID"`
+	Bill         *Bill             `json:"bill,omitempty" gorm:"foreignKey:AppointmentID"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
 type AppointmentRequest struct {

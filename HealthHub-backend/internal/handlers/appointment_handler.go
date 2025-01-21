@@ -250,10 +250,12 @@ func (h *AppointmentHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// if err := h.doctorRepository.ValidateDoctorAccess(r.Context(), uint(doctorID)); err != nil {
-	// 	GenerateErrorResponse(&w, e.NewNotFoundError("doctor not found"))
-	// 	return
-	// }
+	// Basic check if doctor exists in system
+	_, err = h.userRepository.FindByID(r.Context(), uint(doctorID))
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotFoundError("doctor not found"))
+		return
+	}
 
 	dateStr := r.URL.Query().Get("date")
 	if dateStr == "" {
@@ -261,16 +263,9 @@ func (h *AppointmentHandler) GetAvailableSlots(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Parse date with better error handling
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		GenerateErrorResponse(&w, e.NewBadRequestError("invalid date format. Use YYYY-MM-DD"))
-		return
-	}
-
-	// Validate date is not in the past
-	if date.Before(time.Now().Truncate(24 * time.Hour)) {
-		GenerateErrorResponse(&w, e.NewBadRequestError("cannot fetch slots for past dates"))
 		return
 	}
 

@@ -26,7 +26,6 @@ func RegisterDoctorRoutes(router *mux.Router, db *gorm.DB) {
 	doctorService := services.NewDoctorService(doctorRepo, appointmentRepo)
 	doctorProfileHandler := handlers.NewDoctorProfileHandler(doctorService)
 
-	// Public routes for listing doctors so that user can make appoitments
 	router.HandleFunc("/doctors", doctorProfileHandler.ListDoctors).Methods("GET")
 	router.HandleFunc("/doctors/{id}", doctorProfileHandler.GetDoctorPublicProfile).Methods("GET")
 
@@ -42,7 +41,18 @@ func RegisterDoctorRoutes(router *mux.Router, db *gorm.DB) {
 	protected.HandleFunc("/schedule", doctorProfileHandler.GetSchedule).Methods("GET")
 	protected.HandleFunc("/schedule/extend", doctorProfileHandler.ExtendAvailability).Methods("POST")
 	protected.HandleFunc("/schedule/block", doctorProfileHandler.BlockSlot).Methods("POST")
-	// protected.HandleFunc("/patient-login-history", adminHandler.GetPatientLoginHistory).Methods("GET")
 
 	protected.HandleFunc("/patients", doctorProfileHandler.ListPatients).Methods("GET")
+
+	protected.HandleFunc("/billing-settings", doctorProfileHandler.SaveBillingSettings).Methods("POST")
+	protected.HandleFunc("/billing-settings", doctorProfileHandler.GetBillingSettings).Methods("GET")
+	protected.HandleFunc("/billing-settings", doctorProfileHandler.UpdateBillingSettings).Methods("PUT")
+
+	protected.HandleFunc("/appointments/{id}/bill", doctorProfileHandler.CreateBill).Methods("POST")
+	protected.HandleFunc("/appointments/{id}/bill", doctorProfileHandler.GetBill).Methods("GET")
+	protected.HandleFunc("/appointments/{id}/bill", doctorProfileHandler.UpdateBill).Methods("PUT")
+
+	protected.HandleFunc("/appointments/{id}/prescription", doctorProfileHandler.CreatePrescription).Methods("POST")
+	protected.HandleFunc("/appointments/{id}/prescription", doctorProfileHandler.GetPrescription).Methods("GET")
+	protected.HandleFunc("/appointments/{id}/prescription", doctorProfileHandler.UpdatePrescription).Methods("PUT")
 }

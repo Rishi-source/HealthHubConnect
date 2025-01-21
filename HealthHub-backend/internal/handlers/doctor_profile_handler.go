@@ -4,6 +4,8 @@ import (
 	e "HealthHubConnect/internal/errors"
 	"HealthHubConnect/internal/models"
 	"HealthHubConnect/internal/services"
+	"HealthHubConnect/internal/utils"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -332,4 +334,286 @@ func getUserIDFromContext(r *http.Request) (uint, error) {
 		return 0, e.NewNotAuthorizedError("invalid user ID format")
 	}
 	return userID, nil
+}
+
+func (h *DoctorProfileHandler) SaveBillingSettings(w http.ResponseWriter, r *http.Request) {
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
+		return
+	}
+
+	var billingSettings models.BillingSettings
+	if err := json.NewDecoder(r.Body).Decode(&billingSettings); err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
+		return
+	}
+
+	// Just validate the billing settings structure
+	if err := validateBillingSettings(&billingSettings); err != nil {
+		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
+		return
+	}
+
+	//  billingSettings to json.RawMessage
+	settingsJSON, err := json.Marshal(billingSettings)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("error marshaling settings"))
+		return
+	}
+
+	if err := h.doctorService.SaveBillingSettings(r.Context(), userID, json.RawMessage(settingsJSON)); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"message":  "Billing settings updated successfully",
+		"settings": billingSettings,
+	})
+}
+
+// Add this helper function
+func validateBillingSettings(settings *models.BillingSettings) error {
+	// Validate consultation fees
+	if settings.ConsultationFees.Online.Amount < 0 {
+		return fmt.Errorf("online consultation amount cannot be negative")
+	}
+	if settings.ConsultationFees.InPerson.Amount < 0 {
+		return fmt.Errorf("in-person consultation amount cannot be negative")
+	}
+	if settings.ConsultationFees.FollowUp.Amount < 0 {
+		return fmt.Errorf("follow-up consultation amount cannot be negative")
+	}
+
+	// Validate at least one payment method
+	if len(settings.PaymentMethods) == 0 {
+		return fmt.Errorf("at least one payment method is required")
+	}
+
+	// Basic validation for UPI and bank details
+	for _, upi := range settings.UPIDetails {
+		if upi.UPIId == "" {
+			return fmt.Errorf("UPI ID cannot be empty")
+		}
+	}
+
+	for _, bank := range settings.BankDetails {
+		if bank.AccountNumber == "" || bank.IFSC == "" {
+			return fmt.Errorf("bank account number and IFSC are required")
+		}
+	}
+
+	return nil
+}
+
+func (h *DoctorProfileHandler) GetBillingSettings(w http.ResponseWriter, r *http.Request) {
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
+		return
+	}
+
+	profile, err := h.doctorService.GetProfile(r.Context(), userID)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, profile.BillingSettings)
+}
+
+func (h *DoctorProfileHandler) UpdateBillingSettings(w http.ResponseWriter, r *http.Request) {
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
+		return
+	}
+
+	var billingSettings models.BillingSettings
+	if err := json.NewDecoder(r.Body).Decode(&billingSettings); err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
+		return
+	}
+
+	// Validate billing settings
+	if err := validateBillingSettings(&billingSettings); err != nil {
+		GenerateErrorResponse(&w, e.NewValidationError(err.Error()))
+		return
+	}
+
+	// Convert to json.RawMessage
+	settingsJSON, err := json.Marshal(billingSettings)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("error marshaling settings"))
+		return
+	}
+
+	// Save using the service method
+	if err := h.doctorService.SaveBillingSettings(r.Context(), userID, json.RawMessage(settingsJSON)); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]interface{}{
+		"message":  "Billing settings updated successfully",
+		"settings": billingSettings,
+	})
+}
+
+func (h *DoctorProfileHandler) CreateBill(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appointmentID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
+		return
+	}
+
+	var billReq models.BillRequest
+	if err := json.NewDecoder(r.Body).Decode(&billReq); err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
+		return
+	}
+
+	// Parse due date from the string directly
+	bill, err := h.doctorService.CreateBill(r.Context(), uint(appointmentID), userID, &billReq)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusCreated, bill)
+}
+
+func (h *DoctorProfileHandler) GetBill(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appointmentID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	bill, err := h.doctorService.GetBill(r.Context(), uint(appointmentID))
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, bill)
+}
+
+func (h *DoctorProfileHandler) UpdateBill(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appointmentID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	var billUpdate models.Bill
+	if err := json.NewDecoder(r.Body).Decode(&billUpdate); err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
+		return
+	}
+
+	if err := h.doctorService.UpdateBill(r.Context(), uint(appointmentID), &billUpdate); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"message": "Bill updated successfully",
+	})
+}
+
+func (h *DoctorProfileHandler) GetPrescription(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appointmentID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	prescription, err := h.doctorService.GetPrescription(r.Context(), uint(appointmentID))
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, prescription)
+}
+
+func (h *DoctorProfileHandler) UpdatePrescription(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appointmentID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	var prescription models.Prescription
+	if err := json.NewDecoder(r.Body).Decode(&prescription); err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
+		return
+	}
+
+	if err := h.doctorService.UpdatePrescription(r.Context(), uint(appointmentID), &prescription); err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusOK, map[string]string{
+		"message": "Prescription updated successfully",
+	})
+}
+
+func (h *DoctorProfileHandler) CreatePrescription(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appointmentID, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid appointment ID"))
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(r.Context())
+	if err != nil {
+		GenerateErrorResponse(&w, e.NewNotAuthorizedError("unauthorized access"))
+		return
+	}
+
+	var prescriptionReq models.PrescriptionRequest
+	if err := json.NewDecoder(r.Body).Decode(&prescriptionReq); err != nil {
+		GenerateErrorResponse(&w, e.NewBadRequestError("invalid request body"))
+		return
+	}
+
+	// Create prescription using the PrescriptionRequest model
+	prescription := &models.Prescription{
+		DoctorID:        userID,
+		AppointmentID:   uint(appointmentID),
+		Diagnosis:       prescriptionReq.Diagnosis,
+		ChiefComplaints: prescriptionReq.ChiefComplaints,
+		DoctorNotes:     prescriptionReq.DoctorNotes,
+		Medications:     prescriptionReq.Medications,
+		Investigations:  prescriptionReq.Investigations,
+		Advice:          prescriptionReq.Advice,            // Now matches the string type
+		FollowUp:        prescriptionReq.FollowUp,
+		Status:          prescriptionReq.Status,
+		Vitals:          *prescriptionReq.Vitals,          // Dereference the pointer
+		PatientHistory:  *prescriptionReq.PatientHistory,  // Dereference the pointer
+	}
+
+	createdPrescription, err := h.doctorService.CreatePrescription(r.Context(), prescription)
+	if err != nil {
+		GenerateErrorResponse(&w, err)
+		return
+	}
+
+	GenerateResponse(&w, http.StatusCreated, createdPrescription)
 }

@@ -19,6 +19,7 @@ type DoctorProfile struct {
 	PracticeDetails PracticeDetails `json:"practiceDetails" gorm:"-"`
 	SpecJSON        string          `json:"-" gorm:"column:spec_json;type:jsonb"`
 	Specializations SpecInfo        `json:"specializations" gorm:"-"`
+	BillingSettings json.RawMessage `json:"billing_settings" gorm:"type:json;default:'{}'"`
 }
 
 type DoctorUserInfo struct {
@@ -180,4 +181,41 @@ type PatientInfo struct {
 	LastVisit       *time.Time `json:"last_visit"`
 	TotalVisits     int        `json:"total_visits"`
 	NextAppointment *time.Time `json:"next_appointment,omitempty"`
+}
+
+type BillingSettings struct {
+	ConsultationFees struct {
+		Online struct {
+			Amount       float64 `json:"amount"`
+			Currency     string  `json:"currency"`
+			DurationMins int     `json:"duration_minutes"`
+		} `json:"online"`
+		InPerson struct {
+			Amount       float64 `json:"amount"`
+			Currency     string  `json:"currency"`
+			DurationMins int     `json:"duration_minutes"`
+		} `json:"in_person"`
+		FollowUp struct {
+			Amount       float64 `json:"amount"`
+			Currency     string  `json:"currency"`
+			DurationMins int     `json:"duration_minutes"`
+			ValidityDays int     `json:"validity_days"`
+		} `json:"follow_up"`
+	} `json:"consultation_fees"`
+	PaymentMethods []string `json:"payment_methods"`
+	BankDetails    []struct {
+		BankName      string `json:"bank_name"`
+		AccountNumber string `json:"account_number"`
+		IFSC          string `json:"ifsc"`
+		AccountName   string `json:"account_name"`
+	} `json:"bank_details"`
+	UPIDetails []struct {
+		UPIId     string `json:"upi_id"`
+		IsDefault bool   `json:"is_default"`
+	} `json:"upi_details"`
+	TaxInfo struct {
+		GSTIN   string  `json:"gstin"`
+		PAN     string  `json:"pan"`
+		TaxRate float64 `json:"tax_rate"`
+	} `json:"tax_info"`
 }
