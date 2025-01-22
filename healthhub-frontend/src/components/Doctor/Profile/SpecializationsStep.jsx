@@ -331,7 +331,6 @@ const SpecializationsStep = ({
     onChange = () => { },
     onValidationChange = () => { }
   }) => {
-    // Initialize with default data if none provided
     const defaultSpecialization = {
       name: '',
       subspecialty: '',
@@ -353,7 +352,6 @@ const SpecializationsStep = ({
     const [touched, setTouched] = useState({});
     const [validationMessage, setValidationMessage] = useState(null);
     
-// Prepare data for API payload
 const preparePayload = (specializations) => {
     return {
       specializations: specializations.map(spec => ({
@@ -369,7 +367,7 @@ const preparePayload = (specializations) => {
           description: proc.description?.trim(),
           duration: proc.duration?.trim(),
           cost: proc.cost?.trim() || null
-        })).filter(proc => proc.name) // Only include procedures with names
+        })).filter(proc => proc.name)
       }))
     };
   };
@@ -385,7 +383,6 @@ const preparePayload = (specializations) => {
 
     setFormData(newData);
     
-    // Mark fields as touched
     setTouched(prev => ({
         ...prev,
         [index]: true,
@@ -395,7 +392,6 @@ const preparePayload = (specializations) => {
         description: true
     }));
 
-    // Validate and prepare payload
     const isValid = validateForm(newSpecializations);
     const payload = preparePayload(newSpecializations);
 
@@ -405,7 +401,6 @@ const preparePayload = (specializations) => {
         isValid
     });
 
-    // Send structured data to parent
     onChange({
         raw: newData,
         payload,
@@ -436,7 +431,6 @@ const preparePayload = (specializations) => {
       }
     }
 
-    // Validate procedures if any exist
     specialization.procedures?.forEach((procedure, procIndex) => {
       if (procedure.name?.trim()) {
         if (!procedure.duration?.trim()) {
@@ -448,7 +442,6 @@ const preparePayload = (specializations) => {
       }
     });
 
-    // Validate URL if provided
     if (specialization.profileLink?.trim()) {
       try {
         new URL(specialization.profileLink);
@@ -472,7 +465,7 @@ const preparePayload = (specializations) => {
       const specializationErrors = validateSpecialization(
         specialization,
         index,
-        index === 0 // Primary specialization
+        index === 0 
       );
 
       if (specializationErrors) {
@@ -495,7 +488,7 @@ const preparePayload = (specializations) => {
   };
 
   const handleSpecializationRemove = (index) => {
-    if (index === 0) return; // Don't remove primary specialization
+    if (index === 0) return;
 
     const newSpecializations = formData.specializations.filter((_, i) => i !== index);
     const newData = {
@@ -507,7 +500,6 @@ const preparePayload = (specializations) => {
     onChange(newData, isValid);
   };
 
-  // Initialize validation on mount and when data changes
   useEffect(() => {
     if (formData?.specializations?.length > 0) {
       validateForm(formData.specializations);

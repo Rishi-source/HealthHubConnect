@@ -237,7 +237,6 @@ const DoctorBasicInfoStep = ({
         const newErrors = {};
         let hasErrors = false;
 
-        // Validate all fields
         Object.keys(formData).forEach(field => {
             const error = validateField(field, formData[field]);
             if (error) {
@@ -246,7 +245,6 @@ const DoctorBasicInfoStep = ({
             }
         });
 
-        // Check required fields are filled
         const requiredFieldsFilled = requiredFields.every(field => {
             if (Array.isArray(formData[field])) {
                 return formData[field].length > 0;
@@ -304,7 +302,6 @@ const DoctorBasicInfoStep = ({
         }));
     };
 
-    // Validate form on mount and when data changes
     useEffect(() => {
         validateForm(data);
     }, [data]);

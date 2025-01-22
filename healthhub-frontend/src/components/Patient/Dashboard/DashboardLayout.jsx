@@ -14,6 +14,8 @@ import AppointmentsPageWithTheme from './AppointmentsPage';
 import Records from './Records';
 import SettingsPage from './Settings';
 
+
+
 const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,20 +34,16 @@ const DashboardLayout = () => {
 
   ];
 
-  const handleLogout = () => {
+const handleLogout = () => {
+  // Change from accessToken to access_token to match the storage key
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('healthProfile');
+  localStorage.removeItem('darkMode');
 
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-
-
-    localStorage.removeItem('healthProfile');
-    localStorage.removeItem('darkMode');
-
-
-    window.location.href = '/auth';
-  };
-
+  window.location.href = '/auth';
+};
   useEffect(() => {
     const currentPath = location.pathname;
     const normalizedPath = currentPath.replace(/\/$/, '');

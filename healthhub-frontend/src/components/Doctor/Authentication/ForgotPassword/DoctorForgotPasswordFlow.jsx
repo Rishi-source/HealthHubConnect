@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Stethoscope, Loader } from 'lucide-react';
+import { Stethoscope } from 'lucide-react';
+
 import DoctorEmailStep from './DoctorEmailStep';
 import DoctorOTPStep from './DoctorOTPStep';
 import DoctorNewPasswordStep from './DoctorNewPasswordStep';
@@ -130,7 +131,7 @@ const DoctorForgotPasswordFlow = () => {
   const handleEmailSubmit = async (email) => {
     await handleTransition(async () => {
       try {
-        const response = await fetch('https://anochat.in/v1/doctor/forgot-password', {
+        const response = await fetch('https://anochat.in/v1/auth/forgot-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -143,7 +144,7 @@ const DoctorForgotPasswordFlow = () => {
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-          throw new Error(data.message || 'Failed to send email');
+          throw new Error(data.message || 'Failed to send reset instructions');
         }
 
         setEmail(email.trim().toLowerCase());
@@ -157,7 +158,7 @@ const DoctorForgotPasswordFlow = () => {
   const handleOTPSubmit = async (otpValue) => {
     await handleTransition(async () => {
       try {
-        const response = await fetch('https://anochat.in/v1/doctor/verify-otp', {
+        const response = await fetch('https://anochat.in/v1/auth/verify-otp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -185,7 +186,7 @@ const DoctorForgotPasswordFlow = () => {
   const handlePasswordReset = async (newPassword) => {
     await handleTransition(async () => {
       try {
-        const response = await fetch('https://anochat.in/v1/doctor/reset-password', {
+        const response = await fetch('https://anochat.in/v1/auth/reset-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -220,7 +221,7 @@ const DoctorForgotPasswordFlow = () => {
 
   const handleResendOTP = async () => {
     try {
-      const response = await fetch('https://anochat.in/v1/doctor/resend-otp', {
+      const response = await fetch('https://anochat.in/v1/auth/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +234,7 @@ const DoctorForgotPasswordFlow = () => {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to send OTP');
+        throw new Error(data.message || 'Failed to resend OTP');
       }
 
       return true;
@@ -256,13 +257,13 @@ const DoctorForgotPasswordFlow = () => {
         transition={{ duration: 0.3 }}
       >
         <Routes>
-        <Route index element={
-    <DoctorEmailStep
-        onSubmit={handleEmailSubmit}
-        onBack={() => navigate('/doctor')}
-        isLoading={isLoading}
-    />
-} />
+          <Route index element={
+            <DoctorEmailStep
+              onSubmit={handleEmailSubmit}
+              onBack={() => navigate('/doctor')}
+              isLoading={isLoading}
+            />
+          } />
 
           <Route path="verify" element={
             <DoctorOTPStep

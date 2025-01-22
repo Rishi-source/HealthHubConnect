@@ -17,6 +17,7 @@ import PrescriptionsPage from '../Dashboard/PrescriptionsPage';
 import BillingSettings from '../Dashboard/PaymentDetails';
 import AnalyticsDashboard from '../Dashboard/AnalyticsDashboard';
 import EditProfile from '../Dashboard/EditProfile';
+import DoctorLoadingTransition from '../Authentication/ForgotPassword/DoctorLoadingTransition';
 
 const PageTransition = ({ children }) => (
   <motion.div
@@ -35,7 +36,8 @@ const DoctorAuthFlow = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
-  
+  const [showLoadingTransition, setShowLoadingTransition] = useState(false);
+
   useEffect(() => {
     const logMount = () => {
       console.log('DoctorAuthFlow mounted');
@@ -43,7 +45,7 @@ const DoctorAuthFlow = () => {
     };
 
     logMount();
-    
+
     return () => {
       console.log('DoctorAuthFlow unmounted');
     };
@@ -52,8 +54,8 @@ const DoctorAuthFlow = () => {
   const DoctorProtectedRoute = ({ children }) => {
     return children;
   };
-      
-  
+
+
   const handleSignupComplete = useCallback(async (signupData) => {
     console.log('Handling doctor signup:', signupData);
     if (signupData?.success) {
@@ -67,7 +69,7 @@ const DoctorAuthFlow = () => {
       }
     }
   }, [navigate]);
-  
+
   const handleLoginComplete = useCallback(async (loginData) => {
     console.log('Handling doctor login:', loginData);
     if (loginData?.data?.tokens) {
@@ -76,13 +78,13 @@ const DoctorAuthFlow = () => {
         localStorage.setItem('doctor_access_token', loginData.data.tokens.access_token);
         localStorage.setItem('doctor_refresh_token', loginData.data.tokens.refresh_token);
         await new Promise(resolve => setTimeout(resolve, 500));
-        navigate('/doctor-dashboard');
+        navigate('/doctor/dashboard'); 
       } finally {
         setShowTransition(false);
       }
     }
   }, [navigate]);
-  
+
   const handleOTPComplete = useCallback(async () => {
     console.log('Handling OTP completion');
     setShowTransition(true);
@@ -116,11 +118,10 @@ const DoctorAuthFlow = () => {
     }
   }, [email]);
 
-  const handleProfileComplete = useCallback(async (profileData) => {
-    console.log('Profile completion:', profileData);
-    setShowTransition(true);
+  const handleProfileComplete = useCallback(async (data) => {
+    setShowLoadingTransition(true);
     try {
-      const accessToken = localStorage.getItem('doctor_access_token');
+      const accessToken = localStorage.getItem('access_token');
       if (accessToken) {
         await fetch('https://anochat.in/v1/doctor/profile', {
           method: 'POST',
@@ -128,15 +129,17 @@ const DoctorAuthFlow = () => {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(profileData)
+          body: JSON.stringify(data)
         });
+
+        setTimeout(() => {
+          setShowLoadingTransition(false);
+          navigate('/doctor/dashboard');
+        }, 7500); 
       }
-      await new Promise(resolve => setTimeout(resolve, 500));
-      navigate('/doctor/dashboard');
     } catch (error) {
       console.error('Profile save error:', error);
-    } finally {
-      setShowTransition(false);
+      setShowLoadingTransition(false);
     }
   }, [navigate]);
 
@@ -154,49 +157,42 @@ const DoctorAuthFlow = () => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-red-50 to-white w-full">
+    <div className="min-h-screen bg-gray-50">
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
           success: {
-            style: { background: '#10B981', color: 'white' },
-            iconTheme: { primary: 'white', secondary: '#10B981' }
-          },
-          error: {
             style: { background: '#EF4444', color: 'white' },
             iconTheme: { primary: 'white', secondary: '#EF4444' }
+          },
+          error: {
+            style: { background: '#991B1B', color: 'white' },
+            iconTheme: { primary: 'white', secondary: '#991B1B' }
           }
         }}
       />
       <AnimatePresence mode="wait">
-        {showTransition && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 backdrop-blur-sm"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-red-600 via-red-700 to-red-800 flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <Loader className="w-12 h-12 text-white animate-spin mx-auto" />
-                <p className="text-white text-xl">Please wait...</p>
-              </div>
-            </div>
-          </motion.div>
+        {showLoadingTransition && (
+          <DoctorLoadingTransition 
+            onComplete={() => {
+              setShowLoadingTransition(false);
+              navigate('/doctor/dashboard');
+            }}
+          />
         )}
 
         <Routes>
           {/* Auth Routes */}
           <Route path="/" element={
             <PageTransition>
-              <DoctorAuthPage 
+              <DoctorAuthPage
                 onLoginComplete={handleLoginComplete}
                 onSignupComplete={handleSignupComplete}
               />
             </PageTransition>
           } />
-          
+
           <Route path="/verify" element={
             <PageTransition>
               <DoctorOTPVerification
@@ -222,23 +218,23 @@ const DoctorAuthFlow = () => {
           } />
 
           <Route path="/dashboard/*" element={
-  <DoctorProtectedRoute>
-    <PageTransition>
-      <DoctorLayout>
-        <Routes>
-          <Route index element={<DoctorDashboard />} />
-          <Route path="appointments" element={<AppointmentsPage />} />
-          <Route path="schedule" element={<div><DoctorSchedule /></div>} />
-          <Route path="chat" element={<ChatInterface />} />
-          <Route path="prescriptions" element={<div><PrescriptionsPage /></div>} />
-          <Route path="analytics" element={<div><AnalyticsDashboard /></div>} />
-          <Route path="billing" element={<div><BillingSettings /></div>} />
-          <Route path="settings" element={<div><EditProfile /></div>} />
-        </Routes>
-      </DoctorLayout>
-    </PageTransition>
-  </DoctorProtectedRoute>
-} />
+            <DoctorProtectedRoute>
+              <PageTransition>
+                <DoctorLayout>
+                  <Routes>
+                    <Route index element={<DoctorDashboard />} />
+                    <Route path="appointments" element={<AppointmentsPage />} />
+                    <Route path="schedule" element={<div><DoctorSchedule /></div>} />
+                    <Route path="chat" element={<ChatInterface />} />
+                    <Route path="prescriptions" element={<div><PrescriptionsPage /></div>} />
+                    <Route path="analytics" element={<div><AnalyticsDashboard /></div>} />
+                    <Route path="billing" element={<div><BillingSettings /></div>} />
+                    <Route path="settings" element={<div><EditProfile /></div>} />
+                  </Routes>
+                </DoctorLayout>
+              </PageTransition>
+            </DoctorProtectedRoute>
+          } />
 
           <Route path="*" element={
             <PageTransition>

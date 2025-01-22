@@ -11,7 +11,6 @@ import {
   Activity, FileText, MessageSquare, Calendar as CalendarIcon
 } from 'lucide-react';
 
-// Mock data
 const monthlyData = [
   { month: 'Jan', patients: 120, revenue: 12000, appointments: 180 },
   { month: 'Feb', patients: 150, revenue: 15000, appointments: 220 },
@@ -41,7 +40,6 @@ const satisfactionData = [
   { category: 'Unsatisfied', value: 10, color: '#EF4444' }
 ];
 
-// Custom Chart Components
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -93,7 +91,6 @@ const AnalyticsDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-2 bg-teal-50 rounded-lg">
@@ -130,7 +127,6 @@ const AnalyticsDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Patients"
@@ -162,9 +158,7 @@ const AnalyticsDashboard = () => {
         />
       </div>
 
-      {/* Main Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue & Appointments Trend */}
         <div className="bg-white p-6 rounded-xl border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-6">Revenue & Appointments</h3>
           <div className="h-80">
@@ -199,7 +193,6 @@ const AnalyticsDashboard = () => {
           </div>
         </div>
 
-        {/* Patient Distribution */}
         <div className="bg-white p-6 rounded-xl border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-6">Patient Distribution</h3>
           <div className="h-80">
@@ -224,7 +217,6 @@ const AnalyticsDashboard = () => {
           </div>
         </div>
 
-        {/* Popular Time Slots */}
         <div className="bg-white p-6 rounded-xl border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-6">Popular Time Slots</h3>
           <div className="h-80">
@@ -240,7 +232,6 @@ const AnalyticsDashboard = () => {
           </div>
         </div>
 
-        {/* Patient Satisfaction */}
         <div className="bg-white p-6 rounded-xl border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-6">Patient Satisfaction</h3>
           <div className="h-80">
@@ -266,7 +257,6 @@ const AnalyticsDashboard = () => {
         </div>
       </div>
 
-      {/* Activity Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-6">Recent Activity</h3>

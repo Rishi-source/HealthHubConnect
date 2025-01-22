@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FileText, Search, Calendar, Filter,
+  FileText, Search, Calendar, Filter, 
   ChevronDown, Download, Eye, AlertCircle,
   Clock, User, Building, Pill, Plus,
   ArrowRight, Link, Activity
@@ -95,12 +95,12 @@ const PrescriptionView = ({ prescription }) => {
             View Prescription Details
           </span>
         </div>
-        <ChevronDown
+        <ChevronDown 
           className={`w-4 h-4 text-gray-400 transition-transform
             ${showDetails ? 'rotate-180' : ''}`}
         />
       </button>
-
+      
       <AnimatePresence>
         {showDetails && (
           <motion.div
@@ -138,7 +138,6 @@ const PrescriptionView = ({ prescription }) => {
                 ))}
               </div>
 
-    
               {prescription.notes && (
                 <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
@@ -149,7 +148,6 @@ const PrescriptionView = ({ prescription }) => {
                 </div>
               )}
 
-         
               <div className="flex items-center justify-end gap-2">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -178,7 +176,6 @@ const RecordCard = ({ record, onViewDetails }) => {
         dark:bg-gray-800/50 hover:shadow-md transition-all duration-200"
     >
       <div className="p-6 space-y-4">
-     
         <div className="flex justify-between items-start">
           <div className="flex items-start gap-4">
             <div className="p-2 bg-teal-900/30 rounded-lg">
@@ -190,15 +187,14 @@ const RecordCard = ({ record, onViewDetails }) => {
             </div>
           </div>
           <span className={`px-3 py-1 text-sm rounded-full 
-            ${record.status === 'completed'
-              ? 'bg-green-900/30 text-green-400'
+            ${record.status === 'completed' 
+              ? 'bg-green-900/30 text-green-400' 
               : 'bg-yellow-900/30 text-yellow-400'}`}
           >
             {record.status}
           </span>
         </div>
 
-     
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm text-gray-300">
@@ -210,7 +206,7 @@ const RecordCard = ({ record, onViewDetails }) => {
               <span>{record.hospital}</span>
             </div>
           </div>
-
+          
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm text-gray-300">
               <Activity className="w-4 h-4 text-gray-500" />
@@ -223,7 +219,6 @@ const RecordCard = ({ record, onViewDetails }) => {
           </div>
         </div>
 
-      
         <div className="flex flex-wrap gap-2">
           {record.symptoms.map((symptom, index) => (
             <span
@@ -235,16 +230,13 @@ const RecordCard = ({ record, onViewDetails }) => {
           ))}
         </div>
 
-   
         <div className="p-3 bg-gray-900/50 rounded-lg">
           <h4 className="text-sm font-medium text-gray-200 mb-2">Diagnosis</h4>
           <p className="text-sm text-gray-300">{record.diagnosis}</p>
         </div>
 
-    
         {record.prescription && <PrescriptionView prescription={record.prescription} />}
 
-   
         <div className="flex items-center justify-between pt-4 border-t dark:border-gray-700">
           <div className="flex gap-2">
             {record.documents.map((doc, index) => (
@@ -256,7 +248,7 @@ const RecordCard = ({ record, onViewDetails }) => {
               </span>
             ))}
           </div>
-
+          
           <div className="flex items-center gap-2">
             {record.followUpDate && (
               <span className="text-sm text-gray-400 flex items-center gap-1">
@@ -322,7 +314,6 @@ const DetailModal = ({ record, onClose }) => {
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
           <div className="space-y-6">
-           
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-400 mb-2">Appointment Type</h3>
@@ -331,8 +322,8 @@ const DetailModal = ({ record, onClose }) => {
               <div>
                 <h3 className="text-sm font-medium text-gray-400 mb-2">Status</h3>
                 <span className={`px-3 py-1 text-sm rounded-full inline-block
-                  ${record.status === 'completed'
-                    ? 'bg-green-900/30 text-green-400'
+                  ${record.status === 'completed' 
+                    ? 'bg-green-900/30 text-green-400' 
                     : 'bg-yellow-900/30 text-yellow-400'}`}
                 >
                   {record.status}
@@ -340,7 +331,6 @@ const DetailModal = ({ record, onClose }) => {
               </div>
             </div>
 
-        
             <div className="p-4 bg-gray-800 rounded-xl space-y-4">
               <h3 className="font-medium text-gray-100">Healthcare Provider</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -355,7 +345,6 @@ const DetailModal = ({ record, onClose }) => {
               </div>
             </div>
 
-        
             <div>
               <h3 className="font-medium text-gray-100 mb-4">Vital Signs</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -370,7 +359,6 @@ const DetailModal = ({ record, onClose }) => {
               </div>
             </div>
 
-         
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <h3 className="font-medium text-gray-100 mb-3">Symptoms</h3>
@@ -391,7 +379,6 @@ const DetailModal = ({ record, onClose }) => {
               </div>
             </div>
 
-           
             <div>
               <h3 className="font-medium text-gray-100 mb-4">Prescription</h3>
               <div className="space-y-4">
@@ -418,31 +405,29 @@ const DetailModal = ({ record, onClose }) => {
               </div>
             </div>
 
-           
             {record.documents && record.documents.length > 0 && (
-              <div>
-                <h3 className="font-medium text-gray-100 mb-4">Related Documents</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {record.documents.map((doc, index) => (
-                    <motion.button
-                      key={index}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="p-4 bg-gray-800 border border-gray-700 rounded-lg flex items-center
+  <div>
+    <h3 className="font-medium text-gray-100 mb-4">Related Documents</h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {record.documents.map((doc, index) => (
+        <motion.button
+          key={index}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="p-4 bg-gray-800 border border-gray-700 rounded-lg flex items-center
             justify-between hover:border-teal-500 hover:bg-gray-700
             transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-teal-400" />
-                        <span className="text-gray-300">{doc}</span>
-                      </div>
-                      <Download className="w-4 h-4 text-gray-500 group-hover:text-teal-400" />
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            )}
-        
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-teal-400" />
+            <span className="text-gray-300">{doc}</span>
+          </div>
+          <Download className="w-4 h-4 text-gray-500 group-hover:text-teal-400" />
+        </motion.button>
+      ))}
+    </div>
+  </div>
+)}
             {record.followUpDate && (
               <div className="p-4 bg-teal-900/30 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -482,22 +467,22 @@ const Records = () => {
   const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   const filteredRecords = records.filter(record => {
-    const matchesSearch =
+    const matchesSearch = 
       record.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.diagnosis.toLowerCase().includes(searchQuery.toLowerCase());
-
+    
     const matchesType = filterType === 'all' || record.type === filterType;
-
+    
     if (filterTimeframe === 'all') return matchesSearch && matchesType;
-
+    
     const recordDate = new Date(record.date);
     const today = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(today.getDate() - 90);
-
+    
     switch (filterTimeframe) {
       case '30days':
         return matchesSearch && matchesType && recordDate >= thirtyDaysAgo;
@@ -514,14 +499,12 @@ const Records = () => {
   };
 
   const handleExportRecords = () => {
-    
     console.log("Exporting records...");
   };
 
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="max-w-7xl mx-auto space-y-6 p-6">
-     
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-teal-900/30 rounded-lg">
@@ -545,7 +528,6 @@ const Records = () => {
           </motion.button>
         </div>
 
-     
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
@@ -611,7 +593,7 @@ const Records = () => {
               </div>
               <h3 className="text-lg font-medium text-gray-100 mb-2">No Records Found</h3>
               <p className="text-gray-400 max-w-md">
-                We couldn't find any medical records matching your search criteria.
+                We couldn't find any medical records matching your search criteria. 
                 Try adjusting your filters or search terms.
               </p>
             </div>
@@ -628,13 +610,13 @@ const Records = () => {
         )}
         {showPrescriptionModal && selectedPrescription && (
           <PrescriptionDetailModal
-            prescription={prescriptionData}
-            onClose={() => setShowModal(false)}
-            onEdit={(prescription) => {
-              setShowModal(false);
-              handleEditPrescription(prescription);
-            }}
-          />
+  prescription={prescriptionData}
+  onClose={() => setShowModal(false)}
+  onEdit={(prescription) => {
+    setShowModal(false);
+    handleEditPrescription(prescription);
+  }}
+/>
         )}
       </AnimatePresence>
     </div>

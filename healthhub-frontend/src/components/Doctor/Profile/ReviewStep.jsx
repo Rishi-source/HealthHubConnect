@@ -76,31 +76,22 @@ const InfoRow = ({ label, value, icon: Icon }) => (
 
 const ReviewStep = ({ data = DEFAULT_DATA, onEditSection = () => {}, validationStatus = {} }) => {
   
-  const safeData = React.useMemo(() => {
+const safeData = React.useMemo(() => {
+    console.log('Incoming data:', data);
     
     const merged = {
-      ...DEFAULT_DATA,
-      ...data,
-      basicInfo: { ...DEFAULT_DATA.basicInfo, ...(data?.basicInfo || {}) },
-      qualifications: { ...DEFAULT_DATA.qualifications, ...(data?.qualifications || {}) },
-      practiceDetails: { ...DEFAULT_DATA.practiceDetails, ...(data?.practiceDetails || {}) },
-      schedule: { ...DEFAULT_DATA.schedule, ...(data?.schedule?.payload || {}) },
-      policies: { ...DEFAULT_DATA.policies, ...(data?.policies || {}) }
+        ...DEFAULT_DATA,
+        ...data,
+        schedule: {
+            ...data.schedule  
+        }
     };
-  
     
-    const specializationsData = data?.specializations?.payload?.specializations || 
-                              data?.specializations?.specializations ||
-                              DEFAULT_DATA.specializations.specializations;
-  
-    merged.specializations = {
-      specializations: Array.isArray(specializationsData) ? specializationsData : []
-    };
-  
-    console.log('Safe Data:', merged); 
+    console.log('Processed safe data:', merged);
     return merged;
-  }, [data]);
-  
+}, [data]);
+
+
   const renderTags = (items = []) => (
     <div className="flex flex-wrap gap-2">
       {(items || []).map((item, index) => (
@@ -301,43 +292,47 @@ const ReviewStep = ({ data = DEFAULT_DATA, onEditSection = () => {}, validationS
       </SectionCard>
 
       
-      <SectionCard
-        title="Schedule"
-        icon={Clock}
-        onEdit={() => onEditSection('schedule')}
-        isComplete={validationStatus.schedule}
-      >
-        <div className="grid grid-cols-7 gap-2">
-          {Object.entries(safeData.schedule?.days || {}).map(([day, schedule], index) => (
-            <div
-              key={day}
-              className={`p-3 rounded-lg text-center ${
-                schedule.enabled
-                  ? 'bg-teal-50 text-teal-700'
-                  : 'bg-gray-50 text-gray-500'
-              }`}
-            >
-              <div className="text-sm font-medium">{day.slice(0, 3)}</div>
-              {schedule.enabled ? (
-                <>
-                  <div className="text-xs mt-1">
-                    {schedule.workingHours?.start} - {schedule.workingHours?.end}
-                  </div>
-                  <div className="text-xs mt-1">
-                    {schedule.slots?.length || 0} slots
-                  </div>
-                  <div className="text-xs mt-1">
-                    {schedule.breaks?.length || 0} breaks
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs mt-1">Off</div>
-              )}
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
+<SectionCard
+    title="Schedule"
+    icon={Clock}
+    onEdit={() => onEditSection('schedule')}
+    isComplete={validationStatus.schedule}
+>
+    <div className="grid grid-cols-7 gap-2">
+        {Object.entries(safeData.schedule?.days || {}).map(([day, schedule]) => {
+            console.log('Rendering day:', day, 'Schedule:', schedule); 
+            return (
+                <div
+                    key={day}
+                    className={`p-3 rounded-lg text-center ${
+                        schedule.enabled
+                            ? 'bg-teal-50 text-teal-700'
+                            : 'bg-gray-50 text-gray-500'
+                    }`}
+                >
+                    <div className="text-sm font-medium">
+                        {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                    </div>
+                    {schedule.enabled ? (
+                        <>
+                            <div className="text-xs mt-1">
+                                {schedule.workingHours?.start || '09:00'} - {schedule.workingHours?.end || '17:00'}
+                            </div>
+                            <div className="text-xs mt-1">
+                                {Array.isArray(schedule.slots) ? schedule.slots.length : 0} slots
+                            </div>
+                            <div className="text-xs mt-1">
+                                {Array.isArray(schedule.breaks) ? schedule.breaks.length : 0} breaks
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-xs mt-1">Off</div>
+                    )}
+                </div>
+            );
+        })}
+    </div>
+</SectionCard>
       
       <SectionCard
         title="Patient Policies"

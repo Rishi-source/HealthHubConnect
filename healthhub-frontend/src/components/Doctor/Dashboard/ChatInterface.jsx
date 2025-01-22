@@ -8,64 +8,9 @@ import {
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
+const API_BASE_URL = 'https://anochat.in/v1';
 
-const useChatData = () => {
-  const [messages] = useState([
-    {
-      id: 1,
-      sender: 'patient',
-      content: 'Hello Dr. Smith, I have been experiencing severe headaches lately',
-      time: '9:30 AM',
-      status: 'read'
-    },
-    {
-      id: 2,
-      sender: 'doctor',
-      content: 'Hello Sarah, I\'m sorry to hear that. How long have you been experiencing these headaches?',
-      time: '9:32 AM',
-      status: 'read'
-    },
-    {
-      id: 3,
-      sender: 'patient',
-      content: 'For about a week now. They\'re especially bad in the morning.',
-      time: '9:33 AM',
-      status: 'read'
-    },
-    {
-      id: 4,
-      sender: 'doctor',
-      content: 'Are you experiencing any other symptoms along with the headaches? Any nausea or sensitivity to light?',
-      time: '9:35 AM',
-      status: 'sent'
-    }
-  ]);
-
-  const patients = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      lastMessage: 'Experiencing severe headaches',
-      time: '9:35 AM',
-      unread: 2,
-      status: 'online',
-      avatar: '/api/placeholder/32/32'
-    },
-    {
-      id: 2,
-      name: 'Michael Chen',
-      lastMessage: 'Thank you doctor',
-      time: 'Yesterday',
-      unread: 0,
-      status: 'offline',
-      avatar: '/api/placeholder/32/32'
-    }
-  ];
-
-  return { messages, patients };
-};
-
-
+// Message Component
 const Message = ({ message }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -102,17 +47,236 @@ const Message = ({ message }) => (
   </motion.div>
 );
 
-
 const ChatInterface = () => {
-  const { messages, patients } = useChatData();
-  const [selectedPatient, setSelectedPatient] = useState(patients[0]);
+  const [messages, setMessages] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [wsConnection, setWsConnection] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
+  // Fetch utility function
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = localStorage.getItem('access_token');
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+
+    const response = await fetch(url, { ...options, headers });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error);
+    }
+    return response.json();
+  };
+
+  // Fetch patients list
+  const fetchPatients = async () => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/doctor/patients`);
+      if (response.success) {
+        const patientsWithChat = await Promise.all(
+          response.data.patients.map(async (patient) => {
+            const unreadCount = await fetchUnreadCount(patient.user_id);
+            return {
+              ...patient,
+              id: patient.user_id,
+              unread: unreadCount.unread_count,
+              status: 'offline',
+              lastMessage: '',
+              time: ''
+            };
+          })
+        );
+        setPatients(patientsWithChat);
+        if (patientsWithChat.length > 0 && !selectedPatient) {
+          setSelectedPatient(patientsWithChat[0]);
+        }
+      }
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to fetch patients list');
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  // Fetch chat history
+  const fetchChatHistory = async (patientId) => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/chat/history/${patientId}`);
+      
+      const formattedMessages = response.map(msg => ({
+        id: msg.id,
+        sender: msg.sender_id === patientId ? 'patient' : 'doctor',
+        content: msg.content,
+        time: new Date(msg.created_at).toLocaleTimeString(),
+        status: msg.read ? 'read' : 'sent'
+      }));
+
+      setMessages(formattedMessages);
+      
+      await fetchWithAuth(`${API_BASE_URL}/chat/messages/read`, {
+        method: 'POST',
+        body: JSON.stringify({ sender_id: patientId })
+      });
+    } catch (err) {
+      setError('Failed to fetch chat history');
+      console.error(err);
+    }
+  };
+
+  // Fetch unread count
+  const fetchUnreadCount = async (patientId) => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/chat/unread/${patientId}`);
+      return response;
+    } catch (err) {
+      console.error('Failed to fetch unread count:', err);
+      return { unread_count: 0 };
+    }
+  };
+
+  // Initialize WebSocket connection
+  const initializeWebSocket = (patientId) => {
+    const token = localStorage.getItem('access_token');
+    const ws = new WebSocket(`${API_BASE_URL.replace('https', 'ws')}/chat/ws/${patientId}`);
+    
+    ws.onopen = () => {
+      console.log('WebSocket Connected');
+      ws.send(JSON.stringify({
+        type: 'auth',
+        token: token
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'message') {
+          setMessages(prev => [...prev, {
+            id: data.message_id || Date.now(),
+            sender: data.sender_id === selectedPatient?.id ? 'patient' : 'doctor',
+            content: data.content,
+            time: new Date(data.time || Date.now()).toLocaleTimeString(),
+            status: data.status || 'sent'
+          }]);
+          scrollToBottom();
+        } else if (data.type === 'pong') {
+          console.log('Received pong');
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket Disconnected:', event.reason);
+      setWsConnection(null);
+      if (!event.wasClean) {
+        setTimeout(() => {
+          if (selectedPatient) {
+            initializeWebSocket(selectedPatient.id);
+          }
+        }, 3000);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+      setError('WebSocket connection error');
+      setWsConnection(null);
+    };
+
+    return ws;
+  };
+
+  // Send message through WebSocket
+  const handleSendMessage = () => {
+    if (!newMessage.trim()) return;
+
+    if (!selectedPatient) {
+      setError('No patient selected');
+      return;
+    }
+
+    if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
+      setError('WebSocket connection is not available');
+      return;
+    }
+
+    try {
+      const messageData = {
+        type: 'message',
+        content: newMessage,
+        receiver_id: selectedPatient.id
+      };
+
+      const tempMessage = {
+        id: Date.now(),
+        sender: 'doctor',
+        content: newMessage,
+        time: new Date().toLocaleTimeString(),
+        status: 'sent'
+      };
+
+      setMessages(prev => [...prev, tempMessage]);
+      wsConnection.send(JSON.stringify(messageData));
+      
+      setNewMessage('');
+      scrollToBottom();
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setError('Failed to send message');
+    }
+  };
+
+  // Keep connection alive
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        wsConnection.send(JSON.stringify({
+          type: 'ping',
+          content: 'ping'
+        }));
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      if (wsConnection) {
+        wsConnection.close();
+      }
+    };
+  }, [wsConnection]);
+
+  // Initialize chat when patient is selected
+  useEffect(() => {
+    if (selectedPatient) {
+      fetchChatHistory(selectedPatient.id);
+      if (wsConnection) {
+        wsConnection.close();
+      }
+      const newWsConnection = initializeWebSocket(selectedPatient.id);
+      setWsConnection(newWsConnection);
+    }
+  }, [selectedPatient]);
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  // Scroll handling
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -121,21 +285,15 @@ const ChatInterface = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Filtered patients for search
   const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Event handlers
   const handleEmojiSelect = (emoji) => {
     setNewMessage(prev => prev + emoji.native);
     setShowEmojiPicker(false);
-  };
-
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      
-      setNewMessage('');
-      scrollToBottom();
-    }
   };
 
   const handleKeyPress = (e) => {
@@ -145,6 +303,23 @@ const ChatInterface = () => {
     }
   };
 
+  // Error handling
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen text-red-500">
+        {error}
+      </div>
+    );
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-teal-500 border-t-transparent" />
+      </div>
+    );
+  }
   return (
     <div className="h-screen flex bg-white">
 

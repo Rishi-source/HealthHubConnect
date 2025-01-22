@@ -75,7 +75,6 @@ const BreakTime = ({ breakData, onChange }) => {
     </div>
   );
 };
-// Simplified Quick Schedule Builder
 const QuickScheduleBuilder = ({ onApply }) => {
     const [template, setTemplate] = useState({
       workingHours: { start: '09:00', end: '17:00' },
@@ -228,7 +227,6 @@ const QuickScheduleBuilder = ({ onApply }) => {
     );
   };
   
-  // Enhanced time slot component
   const EnhancedTimeSlot = ({ slot, index, onChange, onRemove }) => {
     return (
       <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm group">
@@ -376,79 +374,74 @@ const ScheduleManager = ({ data, onChange, onValidationChange }) => {
     const [showBuilder, setShowBuilder] = useState(false);
     const [message, setMessage] = useState(null);
     const validateAndPreparePayload = () => {
-        const enabledDays = Object.values(schedules).filter(s => s.enabled).length;
-        if (enabledDays === 0) {
-          setMessage('Please enable at least one day for appointments');
-          onValidationChange?.(false);
-          return false;
-        }
-        
-        let hasInvalidSlots = false;
-        Object.values(schedules).forEach(schedule => {
-          if (schedule.enabled) {
-            schedule.slots.forEach(slot => {
-              if (!slot.start || !slot.end || !slot.duration) {
-                hasInvalidSlots = true;
-              }
-            });
-          }
-        });
-    
-        if (hasInvalidSlots) {
-          setMessage('Please fill in all slot details for enabled days');
-          onValidationChange?.(false);
-          return false;
-        }
-    
-        setMessage(null);
-        const payload = {
-            raw: schedules,
-            payload: {
+      console.log('Current schedules state:', schedules); 
+  
+      const payload = {
+          schedule: {
               defaultSettings: {
-                timePerPatient: schedules[Object.keys(schedules)[0]]?.slots[0]?.duration || 30
+                  timePerPatient: "30m"
               },
-              days: {}
-            }
-          };
-      
-          Object.entries(schedules)
-            .filter(([_, schedule]) => schedule.enabled)
-            .forEach(([day, schedule]) => {
-              payload.payload.days[day] = {
-                enabled: true,
-                workingHours: {
-                  start: schedule.slots[0]?.start,
-                  end: schedule.slots[schedule.slots.length - 1]?.end
-                },
-                slots: schedule.slots.map(slot => ({
-                  start: slot.start,
-                  end: slot.end,
-                  duration: parseInt(slot.duration)
-                })),
-                breaks: Object.values(schedule.breaks || {})
-                  .filter(breakData => breakData.enabled)
-                  .map(breakData => ({
-                    name: breakData.name,
-                    start: breakData.start,
-                    end: breakData.end
-                  }))
-              };
-            });
-      
-          onChange?.(payload);
-          onValidationChange?.(true);
-          return true;
-        };
-        useEffect(() => {
-            validateAndPreparePayload();
-          }, [schedules]);
-        
-          // Update schedules when data prop changes
+              days: Object.entries(schedules).reduce((acc, [day, dayData]) => {
+                  if (dayData.enabled) {
+                      acc[day.toLowerCase()] = {
+                          enabled: true,
+                          workingHours: {
+                              start: dayData.slots[0]?.start || "09:00",
+                              end: dayData.slots[dayData.slots.length - 1]?.end || "17:00"
+                          },
+                          slots: dayData.slots.map(slot => ({
+                              start: slot.start,
+                              end: slot.end,
+                              duration: parseInt(slot.duration),
+                              capacity: 1
+                          })),
+                          breaks: Object.values(dayData.breaks || {})
+                              .filter(breakData => breakData.enabled)
+                              .map(breakData => ({
+                                  name: breakData.name,
+                                  start: breakData.start,
+                                  end: breakData.end,
+                                  enabled: true
+                              }))
+                      };
+                  }
+                  return acc;
+              }, {})
+          }
+      };
+  
+      console.log('Prepared schedule payload:', payload); 
+      onChange(payload);
+      onValidationChange(true);
+      return true;
+  };        
           useEffect(() => {
-            if (data?.raw && Object.keys(data.raw).length > 0) {
-              setSchedules(data.raw);
+            if (data?.schedule?.days) {
+                const newSchedules = { ...schedules };
+                Object.entries(data.schedule.days).forEach(([day, dayData]) => {
+                    const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1);
+                    newSchedules[capitalizedDay] = {
+                        enabled: dayData.enabled,
+                        slots: dayData.slots.map(slot => ({
+                            start: slot.start,
+                            end: slot.end,
+                            duration: slot.duration.toString()
+                        })),
+                        breaks: dayData.breaks.reduce((acc, breakData) => ({
+                            ...acc,
+                            [breakData.name.toLowerCase().replace(/\s+/g, '')]: {
+                                name: breakData.name,
+                                start: breakData.start,
+                                end: breakData.end,
+                                enabled: breakData.enabled
+                            }
+                        }), {})
+                    };
+                });
+                setSchedules(newSchedules);
             }
-          }, [data]);
+        }, [data]);
+        
         
           const handleScheduleChange = (day, updatedSchedule) => {
             const newSchedules = {
@@ -537,7 +530,6 @@ const ScheduleManager = ({ data, onChange, onValidationChange }) => {
     }
   };
 
-  // Enhanced day schedule component
   const EnhancedDaySchedule = ({ day, schedule, onChange }) => {
     const [isEnabled, setIsEnabled] = useState(schedule.enabled);
   

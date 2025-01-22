@@ -6,7 +6,6 @@ import {
   Shield, DollarSign, Save, RefreshCcw
 } from 'lucide-react';
 
-// Mock initial data
 const INITIAL_BILLING_DATA = {
   bankAccounts: [
     {
@@ -42,7 +41,6 @@ const INITIAL_BILLING_DATA = {
 
 
 
-// Bank Account Form Component
 const BankAccountForm = ({ account = {}, onSubmit, onClose }) => {
   const [formData, setFormData] = useState({
     accountName: '',
@@ -267,7 +265,6 @@ const BankAccountForm = ({ account = {}, onSubmit, onClose }) => {
   );
 };
 
-// UPI ID Form Component
 const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
     const [formData, setFormData] = useState({
       upiId: '',
@@ -383,7 +380,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
     );
   };
   
-  // Payment Preferences Form Component
   const PaymentPreferencesForm = ({ preferences, onSubmit, onClose }) => {
     const [formData, setFormData] = useState({
       acceptUPI: true,
@@ -505,7 +501,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
     );
   };
   
-  // Consultation Fees Form Component
   const ConsultationFeesForm = ({ fees, onSubmit, onClose }) => {
     const [formData, setFormData] = useState({
       online: 800,
@@ -616,15 +611,12 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
     );
   };
   
-  // Main Billing Settings Component
   const BillingSettings = () => {
     const [billingData, setBillingData] = useState(INITIAL_BILLING_DATA);
     
-    // Modal state management
     const [activeModal, setActiveModal] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
   
-    // Bank Account Management
     const handleAddBankAccount = (newAccount) => {
       const updatedAccounts = newAccount.id 
         ? billingData.bankAccounts.map(account => 
@@ -632,7 +624,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
           )
         : [...billingData.bankAccounts, { ...newAccount, id: Date.now() }];
       
-      // If set as default, update other accounts
       if (newAccount.isDefault) {
         updatedAccounts.forEach(account => {
           if (account.id !== newAccount.id) {
@@ -651,7 +642,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
     const handleDeleteBankAccount = (accountId) => {
       const updatedAccounts = billingData.bankAccounts.filter(account => account.id !== accountId);
       
-      // Ensure at least one account remains as default
       if (!updatedAccounts.some(account => account.isDefault) && updatedAccounts.length > 0) {
         updatedAccounts[0].isDefault = true;
       }
@@ -662,7 +652,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
       }));
     };
   
-    // UPI ID Management
     const handleAddUPI = (newUPI) => {
       const updatedUPIs = newUPI.id
         ? billingData.upiIds.map(upi => 
@@ -670,7 +659,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
           )
         : [...billingData.upiIds, { ...newUPI, id: Date.now() }];
       
-      // If set as default, update other UPIs
       if (newUPI.isDefault) {
         updatedUPIs.forEach(upi => {
           if (upi.id !== newUPI.id) {
@@ -689,7 +677,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
     const handleDeleteUPI = (upiId) => {
       const updatedUPIs = billingData.upiIds.filter(upi => upi.id !== upiId);
       
-      // Ensure at least one UPI remains as default
       if (!updatedUPIs.some(upi => upi.isDefault) && updatedUPIs.length > 0) {
         updatedUPIs[0].isDefault = true;
       }
@@ -700,7 +687,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
       }));
     };
   
-    // Payment Preferences Management
     const handleUpdatePreferences = (newPreferences) => {
       setBillingData(prev => ({
         ...prev,
@@ -709,7 +695,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
       setActiveModal(null);
     };
   
-    // Consultation Fees Management
     const handleUpdateConsultationFees = (newFees) => {
       setBillingData(prev => ({
         ...prev,
@@ -718,7 +703,6 @@ const UPIForm = ({ upi = {}, onSubmit, onClose }) => {
       setActiveModal(null);
     };
   
-    // Render Methods
     const renderBankAccounts = () => {
       return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100">

@@ -5,6 +5,38 @@ import {
   ShieldCheck, DollarSign, Calendar, Wallet, Building
 } from 'lucide-react';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 bg-red-50 rounded-xl text-red-600">
+          <h1>Something went wrong.</h1>
+          <button 
+            onClick={() => this.setState({ hasError: false })}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 const InputField = memo(({
   icon: Icon,
   label,
@@ -75,14 +107,13 @@ const InputField = memo(({
   </div>
 ));
 
-// Insurance Provider Card Component
 const InsuranceProviderCard = memo(({
   provider,
   index,
   onUpdate,
   onRemove,
-  errors,
-  touched
+  errors = {},
+  touched = {}
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -156,10 +187,10 @@ const InsuranceProviderCard = memo(({
 const PatientPoliciesStep = ({
   data = {
     cancellationPolicy: '',
-    cancellationTimeframe: '',
-    cancellationFee: '',
+    cancellationTimeframe: '24h',
+    cancellationFee: '0',
     noShowPolicy: '',
-    noShowFee: '',
+    noShowFee: '0',
     insuranceProviders: [],
     paymentMethods: [],
     consultationPrep: '',
@@ -170,19 +201,22 @@ const PatientPoliciesStep = ({
   onChange = () => { },
   onValidationChange = () => { }
 }) => {
+  console.log('PatientPoliciesStep rendered with data:', data);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [focusedField, setFocusedField] = useState(null);
   const [validationMessage, setValidationMessage] = useState(null);
+  const [providerErrors, setProviderErrors] = useState({});
+
 
   const PAYMENT_METHODS = [
-    'Credit Card',
-    'Debit Card',
-    'Cash',
-    'UPI',
-    'Bank Transfer',
-    'Mobile Wallet',
-    'Insurance'
+    { value: 'cash', label: 'Cash' },
+    { value: 'credit_card', label: 'Credit Card' },
+    { value: 'debit_card', label: 'Debit Card' },
+    { value: 'upi', label: 'UPI' },
+    { value: 'bank_transfer', label: 'Bank Transfer' },
+    { value: 'mobile_wallet', label: 'Mobile Wallet' },
+    { value: 'insurance', label: 'Insurance' }
   ];
 
   const validateField = (name, value) => {
@@ -190,7 +224,11 @@ const PatientPoliciesStep = ({
       case 'cancellationPolicy':
         return !value?.trim() ? 'Cancellation policy is required' : null;
       case 'cancellationTimeframe':
-        return !value?.trim() ? 'Cancellation timeframe is required' : null;
+        if (!value?.trim()) return 'Cancellation timeframe is required';
+        if (!value.endsWith('h')) return 'Timeframe must be in hours format (e.g., 24h)';
+        const hours = parseInt(value);
+        if (isNaN(hours) || hours <= 0) return 'Invalid timeframe';
+        return null;
       case 'cancellationFee':
         if (!value?.trim()) return 'Cancellation fee is required';
         if (isNaN(value) || parseFloat(value) < 0) return 'Invalid fee amount';
@@ -211,23 +249,33 @@ const PatientPoliciesStep = ({
         return null;
     }
   };
+  const formatTimeframe = (value) => {
+    if (!value) return value;
+    const numericValue = value.replace(/[^\d]/g, '');
+    return `${numericValue}h`;
+  };
 
   const handleChange = (name, value) => {
-    const newData = { ...data, [name]: value };
-    const error = validateField(name, value);
+    console.log('handleChange called with:', { name, value });
+    try {
+      const newData = { ...data, [name]: value };
+      const error = validateField(name, value);
 
-    setErrors(prev => ({
-      ...prev,
-      [name]: error
-    }));
+      setErrors(prev => ({
+        ...prev,
+        [name]: error
+      }));
 
-    setTouched(prev => ({
-      ...prev,
-      [name]: true
-    }));
+      setTouched(prev => ({
+        ...prev,
+        [name]: true
+      }));
 
-    onChange(newData);
-    validateForm(newData);
+      onChange(newData);
+      validateForm(newData);
+    } catch (err) {
+      console.error('Error in handleChange:', err);
+    }
   };
 
   const handleFocus = (name) => {
@@ -244,28 +292,31 @@ const PatientPoliciesStep = ({
   };
 
   const validateForm = (formData) => {
+    try {
+    console.log('validateForm called with:', formData);
     const newErrors = {};
     let hasErrors = false;
 
-    // Validate required fields
     ['cancellationPolicy', 'cancellationTimeframe', 'cancellationFee',
-     'noShowPolicy', 'noShowFee', 'paymentMethods', 'consultationPrep',
-     'documentationRequired'].forEach(field => {
-      const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
-        hasErrors = true;
-      }
-    });
-
-    // Validate insurance providers
-    if (formData.insuranceProviders?.length > 0) {
-      formData.insuranceProviders.forEach((provider, index) => {
-        if (!provider.name?.trim() || !provider.planTypes?.trim()) {
-          newErrors[`insuranceProviders.${index}`] = 'Provider details are incomplete';
+      'noShowPolicy', 'noShowFee', 'paymentMethods', 'consultationPrep',
+      'documentationRequired'].forEach(field => {
+        const error = validateField(field, formData[field]);
+        if (error) {
+          newErrors[field] = error;
           hasErrors = true;
         }
       });
+
+    if (formData.insuranceProviders?.length > 0) {
+      const newProviderErrors = {};
+      formData.insuranceProviders.forEach((provider, index) => {
+        const errors = validateInsuranceProvider(provider);
+        if (errors) {
+          newProviderErrors[index] = errors;
+          hasErrors = true;
+        }
+      });
+      setProviderErrors(newProviderErrors);
     }
 
     setErrors(newErrors);
@@ -275,17 +326,44 @@ const PatientPoliciesStep = ({
     setValidationMessage(message);
     onValidationChange?.(!hasErrors);
 
-    return !hasErrors;
+    return !hasErrors;} catch (err) {
+      console.error('Error in validateForm:', err);
+      return false;
+    }
+  };
+  useEffect(() => {
+    console.log('PatientPoliciesStep mounted');
+    return () => {
+      console.log('PatientPoliciesStep unmounted');
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('Data changed:', data);
+  }, [data]);
+
+
+  const validateInsuranceProvider = (provider) => {
+    const errors = {};
+    if (!provider.name?.trim()) errors.name = 'Provider name is required';
+    if (!provider.planTypes?.trim()) errors.planTypes = 'Plan types are required';
+    return Object.keys(errors).length > 0 ? errors : null;
   };
 
-  // Initialize validation on mount
+  const defaultInsuranceProvider = {
+    name: '',
+    planTypes: '',
+    verificationProcess: 'Online verification',  
+    processingTime: '2-3 business days'  
+  };
+
+
   useEffect(() => {
     validateForm(data);
-  }, []);
+  }, [data]); 
 
   return (
     <div className="space-y-8">
-      {/* Cancellation Policy Section */}
       <div className="space-y-6 bg-white p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
           <Clock className="w-5 h-5 text-gray-500" />
@@ -314,13 +392,13 @@ const PatientPoliciesStep = ({
               label="Cancellation Timeframe"
               name="cancellationTimeframe"
               value={data.cancellationTimeframe}
-              onChange={handleChange}
+              onChange={(name, value) => handleChange(name, formatTimeframe(value))}
               onFocus={handleFocus}
               onBlur={handleBlur}
               error={errors.cancellationTimeframe}
               touched={touched.cancellationTimeframe}
               isFocused={focusedField === 'cancellationTimeframe'}
-              placeholder="e.g., 24 hours before appointment"
+              placeholder="e.g., 24h"
               required
             />
 
@@ -378,14 +456,12 @@ const PatientPoliciesStep = ({
         </div>
       </div>
 
-      {/* Insurance & Payment Section */}
       <div className="space-y-6 bg-white p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
           <Wallet className="w-5 h-5 text-gray-500" />
           Insurance & Payment Methods
         </h3>
 
-        {/* Insurance Providers */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <label className="block text-sm font-medium text-gray-700">
@@ -396,17 +472,11 @@ const PatientPoliciesStep = ({
               onClick={() => {
                 const newProviders = [
                   ...(data.insuranceProviders || []),
-                  {
-                    name: '',
-                    planTypes: '',
-                    verificationProcess: '',
-                    processingTime: ''
-                  }
+                  { ...defaultInsuranceProvider }
                 ];
                 handleChange('insuranceProviders', newProviders);
               }}
-              className="text-teal-600 hover:text-teal-700 
-                flex items-center gap-1 text-sm"
+              className="text-teal-600 hover:text-teal-700 flex items-center gap-1 text-sm"
             >
               <Plus className="w-4 h-4" />
               Add Provider
@@ -428,44 +498,45 @@ const PatientPoliciesStep = ({
                   const newProviders = data.insuranceProviders.filter((_, i) => i !== index);
                   handleChange('insuranceProviders', newProviders);
                 }}
-                errors={errors[`insuranceProviders.${index}`]}
-                touched={touched[`insuranceProviders.${index}`]}
-              />
-            ))}
+                errors={providerErrors[index] || {}}
+                touched={touched[`insuranceProviders.${index}`] || {}}
+              />))}
           </AnimatePresence>
         </div>
 
-        {/* Payment Methods */}
         <div className="space-y-4">
           <label className="block text-sm font-medium text-gray-700">
             Payment Methods <span className="text-red-400">*</span>
           </label>
           <div className="flex flex-wrap gap-2">
-            {PAYMENT_METHODS.map((method) => (
-              <motion.button
-                key={method}
-                type="button"
-                onClick={() => {
-                  const methods = data.paymentMethods || [];
-                  const newMethods = methods.includes(method)
-                    ? methods.filter(m => m !== method)
-                    : [...methods, method];
-                  handleChange('paymentMethods', newMethods);
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`
-                  px-4 py-2 rounded-xl border-2 transition-all duration-300
-                  ${data.paymentMethods?.includes(method)
-                    ? 'border-teal-500 bg-teal-50 text-teal-600'
-                    : 'border-gray-200 hover:border-gray-300'
-                  }
-                `}
-              >
-                {method}
-              </motion.button>
-            ))}
-          </div>
+  {PAYMENT_METHODS.map((method) => (
+    <motion.button
+      key={method.value}
+      type="button"
+      onClick={() => {
+        try {
+          const methods = Array.isArray(data.paymentMethods) ? data.paymentMethods : [];
+          const newMethods = methods.includes(method.value)
+            ? methods.filter(m => m !== method.value)
+            : [...methods, method.value];
+          handleChange('paymentMethods', newMethods);
+        } catch (err) {
+          console.error('Error in payment method click:', err);
+        }
+      }}
+      className={`
+        px-4 py-2 rounded-xl border-2 transition-all duration-300
+        ${Array.isArray(data.paymentMethods) && data.paymentMethods.includes(method.value)
+          ? 'border-teal-500 bg-teal-50 text-teal-600'
+          : 'border-gray-200 hover:border-gray-300'
+        }
+      `}
+    >
+      {method.label}
+    </motion.button>
+  ))}
+</div>
+
           {errors.paymentMethods && touched.paymentMethods && (
             <motion.div
               initial={{ opacity: 0, y: -5 }}
@@ -479,7 +550,6 @@ const PatientPoliciesStep = ({
         </div>
       </div>
 
-      {/* Patient Instructions Section */}
       <div className="space-y-6 bg-white p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-gray-500" />
@@ -587,7 +657,6 @@ const PatientPoliciesStep = ({
         </div>
       </div>
 
-      {/* Validation Message */}
       <AnimatePresence>
         {validationMessage && (
           <motion.div
@@ -602,15 +671,13 @@ const PatientPoliciesStep = ({
         )}
       </AnimatePresence>
 
-      {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 bg-gray-50 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              errors.cancellationPolicy || errors.noShowPolicy
+            <div className={`p-2 rounded-lg ${errors.cancellationPolicy || errors.noShowPolicy
                 ? 'bg-gray-200 text-gray-500'
                 : 'bg-green-100 text-green-600'
-            }`}>
+              }`}>
               <Clock className="w-5 h-5" />
             </div>
             <div>
@@ -626,11 +693,10 @@ const PatientPoliciesStep = ({
 
         <div className="p-4 bg-gray-50 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              errors.paymentMethods
+            <div className={`p-2 rounded-lg ${errors.paymentMethods
                 ? 'bg-gray-200 text-gray-500'
                 : 'bg-green-100 text-green-600'
-            }`}>
+              }`}>
               <Wallet className="w-5 h-5" />
             </div>
             <div>
@@ -644,11 +710,10 @@ const PatientPoliciesStep = ({
 
         <div className="p-4 bg-gray-50 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              errors.consultationPrep || errors.documentationRequired
+            <div className={`p-2 rounded-lg ${errors.consultationPrep || errors.documentationRequired
                 ? 'bg-gray-200 text-gray-500'
                 : 'bg-green-100 text-green-600'
-            }`}>
+              }`}>
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>

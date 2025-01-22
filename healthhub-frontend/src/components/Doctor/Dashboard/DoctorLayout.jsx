@@ -148,7 +148,7 @@ const handleLogoClick = () => {
                     }
                   `}
                 >
-  <UserCog className="w-5 h-5 shrink-0" /> {/* Changed from Settings to UserCog */}
+  <UserCog className="w-5 h-5 shrink-0" /> 
                   {isSidebarOpen && (
                     <span className="font-medium text-sm">Edit Profile</span>
                   )}
@@ -184,11 +184,8 @@ const handleLogoClick = () => {
 
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-800">Dr. John Smith</p>
-                <p className="text-xs text-gray-500">Cardiologist</p>
               </div>
               <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-teal-500" />
               </div>
             </div>
           </div>

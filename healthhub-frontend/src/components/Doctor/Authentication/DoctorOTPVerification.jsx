@@ -4,6 +4,7 @@ import {
     Mail, ArrowRight, Check, LockKeyhole, RefreshCcw,
     Sparkles, Stethoscope, Clock, Shield, AlertCircle, X
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const HeartbeatLine = ({ top, opacity = 1 }) => (
     <div className="absolute pointer-events-none overflow-hidden"
@@ -134,6 +135,7 @@ const TimerCircle = ({ seconds }) => {
 };
 
 const DoctorOTPVerification = ({ email, onVerificationComplete, onResendOTP }) => {
+    const navigate = useNavigate();
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [timer, setTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
@@ -188,71 +190,101 @@ const DoctorOTPVerification = ({ email, onVerificationComplete, onResendOTP }) =
             setError('Please enter the complete verification code');
             return;
         }
-
+    
         setIsLoading(true);
         setError('');
-
+    
         try {
-            const response = await fetch('https://anochat.in/v1/doctor/verify-otp', {
+            console.log('Starting OTP verification...');
+            const otpCode = otp.join('');
+            const storedEmail = localStorage.getItem('doctor_signup_email');
+            const storedPassword = localStorage.getItem('doctor_signup_password');
+    
+            if (!storedEmail || !storedPassword) {
+                throw new Error('Login credentials not found');
+            }
+    
+            const otpResponse = await fetch('https://anochat.in/v1/auth/verify-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email,
-                    otp: otp.join('')
+                    email: storedEmail,
+                    otp: otpCode
                 })
             });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
+    
+            const otpData = await otpResponse.json();
+            console.log('OTP verification response:', otpData);
+    
+            if (!otpResponse.ok) {
+                throw new Error(otpData.message || 'Invalid verification code');
+            }
+    
+            if (!otpData.success) {
+                throw new Error('OTP verification failed');
+            }
+    
+            console.log('Proceeding with login after OTP verification...');
+            const loginResponse = await fetch('https://anochat.in/v1/doctor/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: storedEmail,
+                    password: storedPassword
+                })
+            });
+    
+            const loginData = await loginResponse.json();
+            console.log('Login response after OTP:', loginData);
+    
+            if (!loginResponse.ok || !loginData.success) {
+                throw new Error('Login failed after OTP verification');
+            }
+    
+            if (loginData.data?.tokens) {
+                const { access_token, refresh_token } = loginData.data.tokens;
+                
+                localStorage.clear();
+                
+                localStorage.setItem('access_token', access_token);
+                localStorage.setItem('refresh_token', refresh_token);
+                
+                if (loginData.data.user) {
+                    localStorage.setItem('user', JSON.stringify(loginData.data.user));
+                }
+    
+                const storedToken = localStorage.getItem('access_token');
+                if (!storedToken) {
+                    throw new Error('Failed to store authentication tokens');
+                }
+    
                 setVerificationComplete(true);
-
-                const storedPassword = localStorage.getItem('doctor_signup_password');
-                if (!storedPassword) {
-                    throw new Error('Login credentials not found');
-                }
-
-                const loginResponse = await fetch('https://anochat.in/v1/doctor/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email,
-                        password: storedPassword
-                    })
-                });
-
-                const loginData = await loginResponse.json();
-
-                if (!loginResponse.ok || !loginData.success) {
-                    throw new Error('Login failed after verification');
-                }
-
-                localStorage.setItem('doctor_access_token', loginData.data.tokens.access_token);
-                localStorage.setItem('doctor_refresh_token', loginData.data.tokens.refresh_token);
-                localStorage.removeItem('doctor_signup_password');
-                localStorage.removeItem('doctor_signup_email');
-
+    
                 setTimeout(() => {
-                    onVerificationComplete?.();
+                    navigate('/doctor/profile');
                 }, 1000);
             } else {
-                throw new Error(data.message || 'Verification failed');
+                throw new Error('No authentication tokens in login response');
             }
         } catch (error) {
-            console.error('Verification error:', error);
-            setError(error.message || 'Failed to verify code');
-
-            localStorage.removeItem('doctor_signup_password');
-            localStorage.removeItem('doctor_signup_email');
+            console.error('Verification process error:', error);
+            setError(error.message || 'Verification process failed');
+            
+            if (error.message.includes('Invalid verification code') || 
+                error.message.includes('credentials not found')) {
+                localStorage.removeItem('doctor_signup_password');
+                localStorage.removeItem('doctor_signup_email');
+            }
         } finally {
             setIsLoading(false);
         }
     };
-
+    
+    
     const handleResend = async () => {
         if (!canResend) return;
 

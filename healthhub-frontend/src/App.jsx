@@ -159,8 +159,8 @@ const useAuth = () => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Start with false
-  const [isLoading, setIsLoading] = useState(true); // Start with loading
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); 
   const navigate = useNavigate();
   const { verifyAuth, refreshAccessToken, clearAuth, isTokenExpired } = useAuth();
   const authCheckRef = useRef(false);

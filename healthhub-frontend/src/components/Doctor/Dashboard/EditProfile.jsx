@@ -13,7 +13,6 @@ import SpecializationsStep from '../Profile/SpecializationsStep';
 import ScheduleManager from '../Profile/TimeSlot';
 import PatientPoliciesStep from '../Profile/PatientPoliciesStep';
 
-// Enhanced component for blur effect background
 const BlurredBackground = () => (
   <div className="fixed inset-0 pointer-events-none">
     <div className="absolute top-20 left-20 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
@@ -22,7 +21,6 @@ const BlurredBackground = () => (
   </div>
 );
 
-// Progress ring component
 const ProgressRing = ({ progress }) => (
   <div className="relative h-20 w-20">
     <svg className="transform -rotate-90 w-20 h-20">
@@ -161,7 +159,6 @@ const EditProfile = () => {
     }
   };
 
-  // Calculate completion progress
   const completionProgress = Object.values(stepValidation).filter(Boolean).length / steps.length;
 
   if (isLoading) {
@@ -199,7 +196,6 @@ const EditProfile = () => {
       <BlurredBackground />
 
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 relative z-10">
-        {/* Header Section */}
         <motion.div
           initial={{ y: -20 }}
           animate={{ y: 0 }}
@@ -255,9 +251,7 @@ const EditProfile = () => {
 
         </motion.div>
 
-        {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Side Navigation */}
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -317,7 +311,6 @@ const EditProfile = () => {
               })}
             </LayoutGroup>
 
-            {/* Account Security Section */}
             <motion.div
               layout
               className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-5 text-white space-y-4"
@@ -370,7 +363,6 @@ const EditProfile = () => {
             </motion.div>
           </motion.div>
 
-          {/* Main Form Area */}
           <div className="flex-1 min-w-0">
             <motion.div
               layout
@@ -398,7 +390,6 @@ const EditProfile = () => {
                 </AnimatePresence>
               </motion.div>
 
-              {/* Form Navigation - Bottom */}
               <motion.div 
                 layout
                 className="p-6 border-t border-gray-200 flex items-center justify-between bg-gray-50 rounded-b-2xl"
@@ -460,7 +451,6 @@ const EditProfile = () => {
               </motion.div>
             </motion.div>
 
-            {/* Notifications */}
             <AnimatePresence>
               {formError && (
                 <motion.div
@@ -491,7 +481,6 @@ const EditProfile = () => {
         </div>
       </div>
 
-      {/* Global Styles */}
       <style jsx global>{`
         @keyframes pulse-ring {
           0% { transform: scale(0.8); opacity: 0.5; }

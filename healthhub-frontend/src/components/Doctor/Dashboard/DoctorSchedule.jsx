@@ -1,102 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar, ChevronLeft, ChevronRight, Plus, X, Check,
   Calendar as CalendarIcon, Clock, User, Video, Ban,
-  AlertCircle, Lock, Eye, Coffee, Calendar as CalIcon
+  AlertCircle, Lock, Eye, Coffee, Loader2, RefreshCw
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
-// Days of the week
+const API_BASE_URL = 'https://anochat.in/v1/doctor';
+
 const DAYS = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 
   'Thursday', 'Friday', 'Saturday'
 ];
 
-// Initial schedule data structure
-const INITIAL_SCHEDULE = {
-  raw: {
-    Monday: {
-      enabled: true,
-      slots: [
-        { start: "09:00", end: "09:30", duration: "30", capacity: "1" },
-        { start: "09:30", end: "10:00", duration: "30", capacity: "1" },
-        { start: "10:00", end: "10:30", duration: "30", capacity: "1" },
-        { start: "10:30", end: "11:00", duration: "30", capacity: "1" },
-        { start: "11:00", end: "11:30", duration: "30", capacity: "1" },
-        { start: "11:30", end: "12:00", duration: "30", capacity: "1" },
-        { start: "12:00", end: "12:30", duration: "30", capacity: "1" },
-        { start: "14:00", end: "14:30", duration: "30", capacity: "1" },
-        { start: "14:30", end: "15:00", duration: "30", capacity: "1" },
-        { start: "15:00", end: "15:30", duration: "30", capacity: "1" },
-        { start: "15:30", end: "16:00", duration: "30", capacity: "1" },
-        { start: "16:30", end: "17:00", duration: "30", capacity: "1" }
-      ],
-      breaks: {
-        lunchBreak: { enabled: true, start: "13:00", end: "14:00", name: "Lunch Break" },
-        teaBreak: { enabled: true, start: "16:00", end: "16:30", name: "Tea Break" }
-      }
-    },
-    Tuesday: {
-      enabled: true,
-      slots: [
-        { start: "09:00", end: "09:30", duration: "30", capacity: "1" },
-        { start: "09:30", end: "10:00", duration: "30", capacity: "1" },
-        { start: "10:00", end: "10:30", duration: "30", capacity: "1" },
-        { start: "10:30", end: "11:00", duration: "30", capacity: "1" },
-        { start: "11:00", end: "11:30", duration: "30", capacity: "1" },
-        { start: "11:30", end: "12:00", duration: "30", capacity: "1" },
-        { start: "12:00", end: "12:30", duration: "30", capacity: "1" },
-        { start: "14:00", end: "14:30", duration: "30", capacity: "1" },
-        { start: "14:30", end: "15:00", duration: "30", capacity: "1" },
-        { start: "15:00", end: "15:30", duration: "30", capacity: "1" },
-        { start: "15:30", end: "16:00", duration: "30", capacity: "1" },
-        { start: "16:30", end: "17:00", duration: "30", capacity: "1" }
-      ],
-      breaks: {
-        lunchBreak: { enabled: true, start: "13:00", end: "14:00", name: "Lunch Break" },
-        teaBreak: { enabled: true, start: "16:00", end: "16:30", name: "Tea Break" }
-      }
-    }
-  },
-  payload: {
-    defaultSettings: {
-      timePerPatient: "30"
-    },
-    days: {
-      Monday: {
-        enabled: true,
-        workingHours: { start: "09:00", end: "17:00" },
-        slots: [
-          { start: "09:00", end: "09:30", duration: 30 },
-          { start: "09:30", end: "10:00", duration: 30 },
-          { start: "10:00", end: "10:30", duration: 30 },
-          { start: "10:30", end: "11:00", duration: 30 },
-          { start: "11:00", end: "11:30", duration: 30 },
-          { start: "11:30", end: "12:00", duration: 30 },
-          { start: "12:00", end: "12:30", duration: 30 },
-          { start: "14:00", end: "14:30", duration: 30 },
-          { start: "14:30", end: "15:00", duration: 30 },
-          { start: "15:00", end: "15:30", duration: 30 },
-          { start: "15:30", end: "16:00", duration: 30 },
-          { start: "16:30", end: "17:00", duration: 30 }
-        ],
-        breaks: [
-          { name: "Lunch Break", start: "13:00", end: "14:00" },
-          { name: "Tea Break", start: "16:00", end: "16:30" }
-        ]
-      }
-    }
+const formatDate = (date) => date.toISOString().split('T')[0];
+
+const handleApiError = async (response) => {
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`HTTP error! status: ${response.status}, message: ${errorBody}`);
   }
+  return response.json();
 };
 
-// Block Time Modal Component
-const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }) => {
+const BlockTimeModal = ({ 
+  isOpen, 
+  onClose, 
+  onBlock, 
+  selectedDate, 
+  selectedSlot 
+}) => {
   const [reason, setReason] = useState('');
   const [blockType, setBlockType] = useState('slot');
   const [timeRange, setTimeRange] = useState({
     start: selectedSlot?.start || '',
     end: selectedSlot?.end || ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (selectedSlot) {
@@ -107,6 +47,23 @@ const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }
     }
   }, [selectedSlot]);
 
+  const handleBlock = async () => {
+    setIsSubmitting(true);
+    try {
+      await onBlock({
+        date: formatDate(selectedDate),
+        start_time: timeRange.start,
+        end_time: timeRange.end,
+        reason
+      });
+      onClose();
+    } catch (error) {
+      console.error('Block time failed:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -114,7 +71,7 @@ const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div
@@ -128,7 +85,7 @@ const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }
           <div>
             <h2 className="text-xl font-semibold text-gray-800">Block Time</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {selectedDate?.toLocaleDateString('default', { 
+              {selectedDate.toLocaleDateString('default', { 
                 weekday: 'long', 
                 month: 'long', 
                 day: 'numeric' 
@@ -144,69 +101,38 @@ const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }
         </div>
 
         <div className="space-y-6">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setBlockType('slot')}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all
-                ${blockType === 'slot'
-                  ? 'border-teal-500 bg-teal-50'
-                  : 'border-gray-200 hover:border-gray-300'
-                }`}
-            >
-              <Clock className="w-5 h-5 text-teal-500 mx-auto mb-2" />
-              <span className="block text-sm font-medium">
-                Block Time Slot
-              </span>
-            </button>
-            <button
-              onClick={() => setBlockType('date')}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all
-                ${blockType === 'date'
-                  ? 'border-teal-500 bg-teal-50'
-                  : 'border-gray-200 hover:border-gray-300'
-                }`}
-            >
-              <CalIcon className="w-5 h-5 text-teal-500 mx-auto mb-2" />
-              <span className="block text-sm font-medium">
-                Block Entire Day
-              </span>
-            </button>
-          </div>
-
-          {blockType === 'slot' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Time
-                </label>
-                <input
-                  type="time"
-                  value={timeRange.start}
-                  onChange={(e) => setTimeRange(prev => ({
-                    ...prev,
-                    start: e.target.value
-                  }))}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg
-                    focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Time
-                </label>
-                <input
-                  type="time"
-                  value={timeRange.end}
-                  onChange={(e) => setTimeRange(prev => ({
-                    ...prev,
-                    end: e.target.value
-                  }))}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg
-                    focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={timeRange.start}
+                onChange={(e) => setTimeRange(prev => ({
+                  ...prev,
+                  start: e.target.value
+                }))}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg
+                  focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20"
+              />
             </div>
-          )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                End Time
+              </label>
+              <input
+                type="time"
+                value={timeRange.end}
+                onChange={(e) => setTimeRange(prev => ({
+                  ...prev,
+                  end: e.target.value
+                }))}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg
+                  focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20"
+              />
+            </div>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -230,20 +156,23 @@ const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }
               Cancel
             </button>
             <button
-              onClick={() => {
-                onBlock({
-                  type: blockType,
-                  timeRange: blockType === 'slot' ? timeRange : null,
-                  reason,
-                  date: selectedDate
-                });
-                onClose();
-              }}
+              onClick={handleBlock}
+              disabled={isSubmitting}
               className="px-4 py-2 bg-teal-500 text-white rounded-lg
-                hover:bg-teal-600 flex items-center gap-2"
+                hover:bg-teal-600 flex items-center gap-2
+                disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Ban className="w-4 h-4" />
-              Block {blockType === 'slot' ? 'Time Slot' : 'Day'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Blocking...
+                </>
+              ) : (
+                <>
+                  <Ban className="w-4 h-4" />
+                  Block Time
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -252,126 +181,394 @@ const BlockTimeModal = ({ isOpen, onClose, onBlock, selectedDate, selectedSlot }
   );
 };
 
-// Time Slot Component
-const TimeSlot = ({ slot, isBlocked, onBlock }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`relative p-4 rounded-lg border-2 transition-all ${
-        isBlocked
-          ? 'bg-gray-50 border-gray-300'
-          : 'bg-white border-gray-200 hover:border-teal-200'
-      } group`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Clock className={`w-4 h-4 ${isBlocked ? 'text-gray-400' : 'text-gray-500'}`} />
-          <span className={`font-medium ${isBlocked ? 'text-gray-500' : 'text-gray-700'}`}>
-            {slot.start} - {slot.end}
-          </span>
-        </div>
+const DoctorSchedule = () => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [view, setView] = useState('month');
+  const [schedule, setSchedule] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExtending, setIsExtending] = useState(false);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [blockedTimes, setBlockedTimes] = useState([]);
+  const [error, setError] = useState(null);
+
+  const fetchSchedule = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('No access token found');
+
+      const response = await fetch(`${API_BASE_URL}/schedule`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await handleApiError(response);
+      
+      if (data.success) {
+        setSchedule(data.data.schedule);
+        setError(null);
+      } else {
+        throw new Error(data.message || 'Failed to fetch schedule');
+      }
+    } catch (err) {
+      console.error('Failed to fetch schedule:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleExtendSchedule = async () => {
+    try {
+      setIsExtending(true);
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('No access token found');
+
+      const response = await fetch(`${API_BASE_URL}/schedule/extend`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ weeks_to_add: 12 })
+      });
+
+      const data = await handleApiError(response);
+      
+      if (data.success) {
+        await fetchSchedule(); 
+        setError(null);
+      } else {
+        throw new Error(data.message || 'Failed to extend schedule');
+      }
+    } catch (err) {
+      console.error('Failed to extend schedule:', err);
+      setError(err.message);
+    } finally {
+      setIsExtending(false);
+    }
+  };
+
+  const handleBlockTime = async (blockData) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('No access token found');
+
+      const response = await fetch(`${API_BASE_URL}/schedule/block`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(blockData)
+      });
+
+      const data = await handleApiError(response);
+      
+      if (data.success) {
+        await fetchSchedule(); 
         
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">
-            {slot.duration} min
-          </span>
-          {!isBlocked && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onBlock(slot)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity
-                p-1 hover:bg-gray-100 rounded-lg"
-            >
-              <Ban className="w-4 h-4 text-red-500" />
-            </motion.button>
-          )}
+        setBlockedTimes(prev => [...prev, {
+          date: new Date(blockData.date),
+          timeRange: {
+            start: blockData.start_time,
+            end: blockData.end_time
+          },
+          reason: blockData.reason
+        }]);
+        setError(null);
+      } else {
+        throw new Error(data.message || 'Failed to block time');
+      }
+    } catch (err) {
+      console.error('Failed to block time:', err);
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
+
+  const handlePrevMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+  };
+
+  const handleSelectDate = (date) => {
+    setSelectedDate(date);
+    setView('day');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+          <p className="text-gray-600">Loading schedule...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+          <p className="text-xl font-medium text-gray-600">{error}</p>
+          <button
+            onClick={fetchSchedule}
+            className="px-4 py-2 bg-teal-500 text-white rounded-lg 
+              hover:bg-teal-600 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-2 bg-teal-50 rounded-lg">
+            <Calendar className="w-5 h-5 text-teal-600" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">
+              Schedule Management
+            </h1>
+            <p className="text-sm sm:text-base text-gray-500">
+              Manage your appointments and availability
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setView('month')}
+            className={`px-3 sm:px-4 py-2 rounded-lg text-sm transition-colors
+              ${view === 'month'
+                ? 'bg-teal-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }
+            `}
+          >
+            Month View
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setView('day')}
+            className={`px-3 sm:px-4 py-2 rounded-lg text-sm transition-colors
+              ${view === 'day'
+                ? 'bg-teal-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }
+            `}
+          >
+            Day View
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleExtendSchedule}
+            disabled={isExtending}
+            className="px-3 sm:px-4 py-2 bg-teal-500 text-white rounded-lg text-sm
+              hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed
+              flex items-center gap-2"
+          >
+            {isExtending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Extending...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Extend Schedule
+              </>
+            )}
+          </motion.button>
         </div>
       </div>
 
-      {isBlocked && slot.reason && (
-        <div className="mt-2 text-sm text-gray-500">
-          <span className="text-gray-400">Reason:</span> {slot.reason}
+      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <h2 className="text-lg sm:text-2xl font-semibold text-gray-800">
+              {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </h2>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handlePrevMonth}
+                className="p-1 sm:p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleNextMonth}
+                className="p-1 sm:p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleToday}
+                className="px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium text-teal-600
+                  hover:bg-teal-50 rounded-lg"
+              >
+                Today
+              </motion.button>
+            </div>
+          </div>
         </div>
-      )}
 
-      {isBlocked && (
-        <div className="absolute -top-2 -right-2">
-          <span className="px-2 py-1 bg-red-100 text-red-600
-            rounded-full text-xs font-medium">
-            Blocked
-          </span>
+        <div className="w-full overflow-x-auto">
+          {view === 'month' ? (
+            <CalendarGrid
+              currentDate={currentDate}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+              schedule={schedule}
+              onBlockDate={(date) => {
+                setSelectedDate(date);
+                setIsBlockModalOpen(true);
+              }}
+            />
+          ) : (
+            <DaySchedule
+              date={selectedDate}
+              schedule={schedule}
+              onBlockTime={(slot) => {
+                setSelectedSlot(slot);
+                setIsBlockModalOpen(true);
+              }}
+              onSelectDate={setSelectedDate}
+            />
+          )}
         </div>
-      )}
-    </motion.div>
+
+        <AnimatePresence>
+          {isBlockModalOpen && (
+            <BlockTimeModal
+              isOpen={isBlockModalOpen}
+              onClose={() => {
+                setIsBlockModalOpen(false);
+                setSelectedSlot(null);
+              }}
+              onBlock={handleBlockTime}
+              selectedDate={selectedDate}
+              selectedSlot={selectedSlot}
+            />
+          )}
+        </AnimatePresence>
+
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-teal-100 rounded-lg">
+                  <Calendar className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Today's Schedule</h3>
+                  <p className="text-sm text-gray-500">
+                    {schedule?.days?.[DAYS[new Date().getDay()].toLowerCase()]?.slots?.length || 0} slots
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Ban className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Blocked Times</h3>
+                  <p className="text-sm text-gray-500">
+                    {blockedTimes.length} slots blocked
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <Coffee className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Break Times</h3>
+                  <p className="text-sm text-gray-500">
+                    {schedule?.days?.[DAYS[selectedDate.getDay()].toLowerCase()]?.breaks?.length || 0} scheduled
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-teal-500" />
+              <span className="text-sm text-gray-600">Available</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-sm text-gray-600">Blocked</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-amber-500" />
+              <span className="text-sm text-gray-600">Break Time</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-gray-500" />
+              <span className="text-sm text-gray-600">Past Date</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="flex items-center gap-2 text-gray-500 text-sm">
+            <AlertCircle className="w-4 h-4" />
+            <span>Click any time slot or day to block it. Blocked times cannot be booked for appointments.</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-// Break Component
-const Break = ({ breakData }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="p-4 bg-amber-50 rounded-lg border border-amber-200"
-  >
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Coffee className="w-4 h-4 text-amber-600" />
-        <span className="font-medium text-amber-700">{breakData.name}</span>
-      </div>
-      <span className="text-sm text-amber-600">
-        {breakData.start} - {breakData.end}
-      </span>
-    </div>
-  </motion.div>
-);
-
-// Calendar Header Component
-const CalendarHeader = ({ currentDate, onPrevMonth, onNextMonth, onToday }) => (
-<div className="flex items-center justify-between mb-6">
-    <div className="flex items-center gap-4">
-      <h2 className="text-2xl font-semibold text-gray-800">
-        {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-      </h2>
-      <div className="flex items-center gap-2">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onPrevMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <ChevronLeft className="w-5 h-5 text-gray-600" />
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onNextMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onToday}
-          className="px-4 py-2 text-sm font-medium text-teal-600
-            hover:bg-teal-50 rounded-lg"
-        >
-          Today
-        </motion.button>
-      </div>
-    </div>
-  </div>
-);
-
-// Calendar Grid Component
 const CalendarGrid = ({ 
   currentDate, 
   selectedDate, 
   onSelectDate, 
   schedule,
-  blockedDates = [],
   onBlockDate
 }) => {
   const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -382,7 +579,6 @@ const CalendarGrid = ({
   const today = new Date();
   const isToday = (date) => date.toDateString() === today.toDateString();
   const isSelected = (date) => selectedDate?.toDateString() === date.toDateString();
-  const isBlocked = (date) => blockedDates.some(d => d.toDateString() === date.toDateString());
   const isPast = (date) => date < new Date(new Date().setHours(0, 0, 0, 0));
 
   const days = [];
@@ -391,9 +587,9 @@ const CalendarGrid = ({
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayIndex + 1);
     
     if (dayIndex >= 0 && dayIndex < daysInMonth) {
-      const dayName = DAYS[date.getDay()];
-      const daySchedule = schedule?.raw?.[dayName];
-      const blocked = isBlocked(date) || isPast(date);
+      const dayName = DAYS[date.getDay()].toLowerCase();
+      const daySchedule = schedule?.days?.[dayName];
+      const blocked = isPast(date) || !daySchedule?.enabled;
 
       days.push(
         <motion.div
@@ -424,7 +620,7 @@ const CalendarGrid = ({
                 : 'bg-teal-100 text-teal-600'
               }`}
             >
-              {daySchedule.slots.length}
+              {daySchedule.slots?.length || 0}
             </div>
           )}
 
@@ -464,24 +660,14 @@ const CalendarGrid = ({
   );
 };
 
-// Day Schedule Component
 const DaySchedule = ({ 
   date, 
   schedule,
-  blockedTimes = [],
   onBlockTime,
   onSelectDate 
 }) => {
-  const dayName = DAYS[date.getDay()];
-  const daySchedule = schedule?.raw?.[dayName] || { enabled: false, slots: [], breaks: {} };
-
-  const isTimeBlocked = (slot) => {
-    return blockedTimes.some(bt => 
-      bt.date.toDateString() === date.toDateString() &&
-      bt.timeRange?.start === slot.start &&
-      bt.timeRange?.end === slot.end
-    );
-  };
+  const dayName = DAYS[date.getDay()].toLowerCase();
+  const daySchedule = schedule?.days?.[dayName] || { enabled: false, slots: [], breaks: [] };
 
   return (
     <div className="space-y-6">
@@ -538,19 +724,16 @@ const DaySchedule = ({
 
       {daySchedule.enabled ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {daySchedule.slots.map((slot, index) => (
+          {daySchedule.slots?.map((slot, index) => (
             <TimeSlot
               key={index}
               slot={slot}
-              isBlocked={isTimeBlocked(slot)}
               onBlock={() => onBlockTime(slot)}
             />
           ))}
 
-          {Object.values(daySchedule.breaks).map((breakData, index) => (
-            breakData.enabled && (
-              <Break key={`break-${index}`} breakData={breakData} />
-            )
+          {daySchedule.breaks?.map((breakData, index) => (
+            <Break key={`break-${index}`} breakData={breakData} />
           ))}
         </div>
       ) : (
@@ -563,310 +746,70 @@ const DaySchedule = ({
   );
 };
 
-// Main Component
-const DoctorSchedule = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState('month');
-  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
-  const [blockedDates, setBlockedDates] = useState([]);
-  const [blockedTimes, setBlockedTimes] = useState([]);
-  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-
-  // Navigation handlers
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const handleToday = () => {
-    setCurrentDate(new Date());
-    setSelectedDate(new Date());
-  };
-
-  const handleSelectDate = (date) => {
-    setSelectedDate(date);
-    setView('day');
-  };
-
-  // Block handlers
-  const handleBlock = (blockData) => {
-    if (blockData.type === 'date') {
-      setBlockedDates([...blockedDates, blockData.date]);
-    } else {
-      setBlockedTimes([...blockedTimes, {
-        date: blockData.date,
-        timeRange: blockData.timeRange,
-        reason: blockData.reason
-      }]);
-    }
-
-    // Update schedule data
-    const newSchedule = { ...schedule };
-    const dayName = DAYS[blockData.date.getDay()];
-
-    if (blockData.type === 'date') {
-      // Block entire day
-      if (newSchedule.raw[dayName]) {
-        newSchedule.raw[dayName].enabled = false;
-        if (newSchedule.payload.days[dayName]) {
-          newSchedule.payload.days[dayName].enabled = false;
-        }
-      }
-    } else {
-      // Block specific time slot
-      const updatedSlots = newSchedule.raw[dayName].slots.map(slot => {
-        if (slot.start === blockData.timeRange.start && 
-            slot.end === blockData.timeRange.end) {
-          return {
-            ...slot,
-            type: 'block-off',
-            reason: blockData.reason
-          };
-        }
-        return slot;
-      });
-
-      newSchedule.raw[dayName].slots = updatedSlots;
-      if (newSchedule.payload.days[dayName]) {
-        newSchedule.payload.days[dayName].slots = updatedSlots.map(slot => ({
-          start: slot.start,
-          end: slot.end,
-          duration: parseInt(slot.duration),
-          ...(slot.type === 'block-off' && { type: 'block-off' })
-        }));
-      }
-    }
-
-    setSchedule(newSchedule);
-  };
-
+const TimeSlot = ({ slot, onBlock }) => {
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-2 bg-teal-50 rounded-lg">
-            <Calendar className="w-5 h-5 text-teal-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-800">Schedule Management</h1>
-            <p className="text-gray-500">Manage your appointments and availability</p>
-          </div>
-        </div>
-
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-4 rounded-lg border-2 border-gray-200 bg-white 
+        hover:border-teal-200 group transition-all"
+    >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <Clock className="wx-4 h-4 text-gray-500" />
+          <span className="font-medium text-gray-700">
+          {slot.start} - {slot.end}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">
+            {slot.duration} min
+          </span>
           <motion.button
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setView('month')}
-            className={`px-4 py-2 rounded-lg transition-colors
-              ${view === 'month'
-                ? 'bg-teal-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }
-            `}
+            onClick={onBlock}
+            className="opacity-0 group-hover:opacity-100 transition-opacity
+              p-1 hover:bg-gray-100 rounded-lg"
           >
-            Month View
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setView('day')}
-            className={`px-4 py-2 rounded-lg transition-colors
-              ${view === 'day'
-                ? 'bg-teal-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }
-            `}
-          >
-            Day View
+            <Ban className="w-4 h-4 text-red-500" />
           </motion.button>
         </div>
       </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <CalendarHeader
-          currentDate={currentDate}
-          onPrevMonth={handlePrevMonth}
-          onNextMonth={handleNextMonth}
-          onToday={handleToday}
-        />
-
-        {view === 'month' ? (
-          <CalendarGrid
-            currentDate={currentDate}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            schedule={schedule}
-            blockedDates={blockedDates}
-            onBlockDate={(date) => {
-              setSelectedDate(date);
-              setIsBlockModalOpen(true);
-            }}
-          />
-        ) : (
-          <DaySchedule
-            date={selectedDate}
-            schedule={schedule}
-            blockedTimes={blockedTimes}
-            onBlockTime={(slot) => {
-              setSelectedSlot(slot);
-              setIsBlockModalOpen(true);
-            }}
-            onSelectDate={setSelectedDate}
-          />
-        )}
-
-        <AnimatePresence>
-          {isBlockModalOpen && (
-            <BlockTimeModal
-              isOpen={isBlockModalOpen}
-              onClose={() => {
-                setIsBlockModalOpen(false);
-                setSelectedSlot(null);
-              }}
-              onBlock={handleBlock}
-              selectedDate={selectedDate}
-              selectedSlot={selectedSlot}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Status Cards */}
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-100 rounded-lg">
-                  <Calendar className="w-5 h-5 text-teal-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">Today's Schedule</h3>
-                  <p className="text-sm text-gray-500">
-                    {schedule?.raw?.[DAYS[new Date().getDay()]]?.slots.length || 0} slots
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <Ban className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">Blocked Times</h3>
-                  <p className="text-sm text-gray-500">
-                    {blockedTimes.length} slots blocked
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <Coffee className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">Break Times</h3>
-                  <p className="text-sm text-gray-500">
-                    {Object.values(schedule?.raw?.[DAYS[selectedDate.getDay()]]?.breaks || {})
-                      .filter(b => b.enabled).length} scheduled
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-teal-500" />
-              <span className="text-sm text-gray-600">Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="text-sm text-gray-600">Blocked</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-sm text-gray-600">Break Time</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-gray-500" />
-              <span className="text-sm text-gray-600">Past Date</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Help text */}
-        <div className="mt-6">
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
-            <AlertCircle className="w-4 h-4" />
-            <span>Click any time slot or day to block it. Blocked times cannot be booked for appointments.</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    </motion.div>
   );
 };
 
-// Helper function to prepare schedule payload
-const prepareSchedulePayload = (schedule, blockedTimes, blockedDates) => {
+const Break = ({ breakData }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="p-4 bg-amber-50 rounded-lg border border-amber-200"
+  >
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Coffee className="w-4 h-4 text-amber-600" />
+        <span className="font-medium text-amber-700">{breakData.name}</span>
+      </div>
+      <span className="text-sm text-amber-600">
+        {breakData.start} - {breakData.end}
+      </span>
+    </div>
+  </motion.div>
+);
+
+const prepareSchedulePayload = (schedule, blockedTimes) => {
   const payload = {
-    raw: {},
-    payload: {
-      defaultSettings: {
-        timePerPatient: "30"
-      },
-      days: {}
-    }
+    defaultSettings: {
+      timePerPatient: "30"
+    },
+    days: {}
   };
 
-  // Transform the schedule data for each day
-  Object.entries(schedule.raw).forEach(([day, dayData]) => {
-    const isDateBlocked = blockedDates.some(date => 
-      DAYS[date.getDay()] === day
-    );
-
-    // Raw data structure
-    payload.raw[day] = {
-      enabled: !isDateBlocked && dayData.enabled,
-      slots: dayData.slots.map(slot => {
-        const isTimeBlocked = blockedTimes.some(bt => 
-          DAYS[bt.date.getDay()] === day &&
-          bt.timeRange?.start === slot.start &&
-          bt.timeRange?.end === slot.end
-        );
-
-        return {
-          start: slot.start,
-          end: slot.end,
-          duration: slot.duration || "30",
-          capacity: slot.capacity || "1",
-          ...(isTimeBlocked && { type: "block-off" })
-        };
-      }),
-      breaks: dayData.breaks,
-      blockOffs: blockedTimes
-        .filter(bt => DAYS[bt.date.getDay()] === day)
-        .map(bt => ({
-          start: bt.timeRange.start,
-          end: bt.timeRange.end,
-          reason: bt.reason
-        }))
-    };
-
-    // Payload data structure
-    if (!isDateBlocked && dayData.enabled) {
-      payload.payload.days[day] = {
+  Object.entries(schedule.days || {}).forEach(([day, dayData]) => {
+    if (dayData.enabled) {
+      payload.days[day] = {
         enabled: true,
         workingHours: {
           start: dayData.slots[0]?.start || "09:00",
@@ -875,7 +818,7 @@ const prepareSchedulePayload = (schedule, blockedTimes, blockedDates) => {
         slots: dayData.slots
           .filter(slot => {
             const isTimeBlocked = blockedTimes.some(bt => 
-              DAYS[bt.date.getDay()] === day &&
+              bt.date.toLocaleString('default', { weekday: 'long' }).toLowerCase() === day.toLowerCase() &&
               bt.timeRange?.start === slot.start &&
               bt.timeRange?.end === slot.end
             );
@@ -886,15 +829,15 @@ const prepareSchedulePayload = (schedule, blockedTimes, blockedDates) => {
             end: slot.end,
             duration: parseInt(slot.duration || "30")
           })),
-        breaks: Object.values(dayData.breaks)
-          .filter(b => b.enabled)
+        breaks: dayData.breaks
+          ?.filter(b => b.enabled)
           .map(b => ({
             name: b.name,
             start: b.start,
             end: b.end
           })),
         blockOffs: blockedTimes
-          .filter(bt => DAYS[bt.date.getDay()] === day)
+          .filter(bt => bt.date.toLocaleString('default', { weekday: 'long' }).toLowerCase() === day.toLowerCase())
           .map(bt => ({
             start: bt.timeRange.start,
             end: bt.timeRange.end,
@@ -909,8 +852,7 @@ const prepareSchedulePayload = (schedule, blockedTimes, blockedDates) => {
 
 export default DoctorSchedule;
 
-
-
-
-
-                
+export {
+  prepareSchedulePayload,
+  formatDate
+};

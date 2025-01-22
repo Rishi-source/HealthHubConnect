@@ -455,7 +455,6 @@ const PrescriptionForm = ({ initialData = null, onSubmit, onClose }) => {
       vitals: { ...formData.vitals, [field]: value }
     });
 
-    // Calculate BMI when weight or height changes
     if (field === 'weight' || field === 'height') {
       const weight = field === 'weight' ? parseFloat(value) : parseFloat(formData.vitals.weight);
       const height = field === 'height' ? parseFloat(value) / 100 : parseFloat(formData.vitals.height) / 100;
@@ -501,7 +500,6 @@ const PrescriptionForm = ({ initialData = null, onSubmit, onClose }) => {
 
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           <div className="space-y-6">
-            {/* Patient Information */}
             <div>
               <h3 className="text-lg font-medium text-gray-800 mb-4">Patient Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -575,7 +573,6 @@ const PrescriptionForm = ({ initialData = null, onSubmit, onClose }) => {
               </div>
             </div>
 
-            {/* Vital Signs */}
             <div>
               <h3 className="text-lg font-medium text-gray-800 mb-4">Vital Signs</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -629,7 +626,6 @@ const PrescriptionForm = ({ initialData = null, onSubmit, onClose }) => {
               )}
             </div>
 
-            {/* Diagnosis */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Diagnosis
@@ -644,7 +640,6 @@ const PrescriptionForm = ({ initialData = null, onSubmit, onClose }) => {
               />
             </div>
 
-            {/* Medications */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-800">Medications</h3>
@@ -684,7 +679,6 @@ const PrescriptionForm = ({ initialData = null, onSubmit, onClose }) => {
               ))}
             </div>
 
-            {/* Notes and Follow-up */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -776,7 +770,6 @@ const PrescriptionsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-teal-50 rounded-lg">
@@ -800,7 +793,6 @@ const PrescriptionsPage = () => {
           </motion.button>
         </div>
 
-        {/* Search and Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -832,7 +824,6 @@ const PrescriptionsPage = () => {
           </div>
         </div>
 
-        {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
@@ -878,7 +869,6 @@ const PrescriptionsPage = () => {
           ))}
         </div>
 
-        {/* Prescriptions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPrescriptions.map((prescription) => (
             <motion.div
@@ -931,7 +921,7 @@ const PrescriptionsPage = () => {
                           Edit Prescription
                         </button>
                         <button
-                          onClick={() => {/* Handle download */}}
+                          onClick={() => {}}
                           className="w-full px-4 py-2 text-left text-sm text-gray-700
                             hover:bg-gray-50 flex items-center gap-2"
                         >

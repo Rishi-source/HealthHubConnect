@@ -1,4 +1,3 @@
-// src/components/Doctor/Authentication/ForgotPassword/DoctorEmailStep.jsx
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {

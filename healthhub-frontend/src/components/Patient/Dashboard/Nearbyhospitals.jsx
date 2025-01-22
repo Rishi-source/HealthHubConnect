@@ -520,7 +520,6 @@ const NearbyHospitals = () => {
                   </div>
                 </div>
 
-                {/* Specialty Filter */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                     Specialty
@@ -544,7 +543,6 @@ const NearbyHospitals = () => {
                   </div>
                 </div>
 
-                {/* Rating Filter */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                     Minimum Rating
@@ -568,7 +566,6 @@ const NearbyHospitals = () => {
                   </div>
                 </div>
 
-                {/* Amenities Filter */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                     Amenities
@@ -639,7 +636,6 @@ const NearbyHospitals = () => {
             )}
           </div>
 
-          {/* Map */}
           <div className="h-[calc(100vh-12rem)]">
             <MapComponent
               hospitals={filteredHospitals}
@@ -650,7 +646,6 @@ const NearbyHospitals = () => {
           </div>
         </div>
 
-        {/* Results Count */}
         <div className="text-center text-gray-600 dark:text-gray-400">
           Showing {filteredHospitals.length} hospital{filteredHospitals.length !== 1 ? 's' : ''}
         </div>

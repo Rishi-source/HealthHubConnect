@@ -165,7 +165,6 @@ const QualificationsStep = ({
       return 'Invalid data format';
     }
 
-    // Primary degree is mandatory
     if (type === 'degrees') {
       if (items.length === 0) {
         return 'At least one degree is required';
@@ -191,7 +190,6 @@ const QualificationsStep = ({
       }
     }
 
-    // Validate all items in the array
     for (const item of items) {
       if (type === 'certifications' && item.name) {
         if (!item.issuingBody?.trim()) {
@@ -220,7 +218,6 @@ const QualificationsStep = ({
         }
       }
 
-      // Validate year field for all types
       if (item.year) {
         const year = parseInt(item.year);
         if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
@@ -233,7 +230,6 @@ const QualificationsStep = ({
   };
 
   const handleChange = (field, value) => {
-    // Ensure value is an array and clean the data
     const cleanedValue = Array.isArray(value) ? value.map(item => {
       const cleaned = {};
       Object.keys(item).forEach(key => {
@@ -266,7 +262,6 @@ const QualificationsStep = ({
     const newErrors = {};
     let hasErrors = false;
 
-    // Validate each section
     ['degrees', 'certifications', 'specializations', 'trainings'].forEach(field => {
       const error = validateField(field, formData[field]);
       if (error) {
@@ -325,7 +320,6 @@ const QualificationsStep = ({
         items={data.degrees}
         onAdd={() => handleSectionAddition('degrees', getDefaultDegree)}
         onRemove={(index) => {
-          // Prevent removing the first degree
           if (data.degrees.length > 1) {
             const newDegrees = data.degrees.filter((_, i) => i !== index);
             handleChange('degrees', newDegrees);
@@ -590,7 +584,6 @@ const QualificationsStep = ({
         )}
       </AnimatePresence>
 
-      {/* Card showing completion status */}
       <div className="p-4 bg-gray-50 rounded-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

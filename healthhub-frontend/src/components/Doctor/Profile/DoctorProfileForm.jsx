@@ -62,15 +62,39 @@ const steps = [
 const DoctorProfileForm = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const [formData, setFormData] = useState({
-
         basicInfo: {},
         qualifications: {},
         practiceDetails: {},
         specializations: {},
-        schedule: {},
-        policies: {}
+        schedule: {
+            defaultSettings: {
+                timePerPatient: "30m"
+            },
+            days: {
+                monday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] },
+                tuesday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] },
+                wednesday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] },
+                thursday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] },
+                friday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] },
+                saturday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] },
+                sunday: { enabled: false, workingHours: { start: "09:00", end: "17:00" }, slots: [], breaks: [] }
+            }
+        },
+        policies: {
+            cancellationPolicy: "",
+            noShowPolicy: "",
+            cancellationTimeframe: "24h",
+            noShowFee: 0,
+            cancellationFee: 0,
+            paymentMethods: [],
+            consultationPrep: "",
+            documentationRequired: "",
+            followUpPolicy: "",
+            emergencyPolicy: "",
+            insuranceProviders: []
+        }
     });
-    const [stepValidation, setStepValidation] = useState({
+        const [stepValidation, setStepValidation] = useState({
         basicInfo: false,
         qualifications: false,
         practiceDetails: false,
@@ -86,9 +110,39 @@ const DoctorProfileForm = () => {
 
     const handleStepChange = (data) => {
         const stepId = steps[currentStep].id;
-        console.log('Step Change Data:', data); 
+        console.log('Step Change Data:', data);
     
-        if (stepId === 'specializations') {
+if (stepId === 'schedule') {
+    console.log('Schedule data received:', data); 
+    setFormData(prev => {
+        const updatedData = {
+            ...prev,
+            schedule: data.schedule  
+        };
+        console.log('Updated form data:', updatedData);  
+        return updatedData;
+    });
+}
+
+        
+        else if (stepId === 'policies') {
+            setFormData(prev => ({
+                ...prev,
+                policies: {
+                    cancellationPolicy: data.cancellationPolicy || "",
+                    noShowPolicy: data.noShowPolicy || "",
+                    cancellationTimeframe: data.cancellationTimeframe || "24h",
+                    noShowFee: parseFloat(data.noShowFee || 0),
+                    cancellationFee: parseFloat(data.cancellationFee || 0),
+                    paymentMethods: data.paymentMethods || [],
+                    consultationPrep: data.consultationPrep || "",
+                    documentationRequired: data.documentationRequired || "",
+                    followUpPolicy: data.followUpPolicy || "",
+                    emergencyPolicy: data.emergencyPolicy || "",
+                    insuranceProviders: data.insuranceProviders || []
+                }
+            }));
+        } else if (stepId === 'specializations') {
             if (data.raw) {
                 setFormData(prev => ({
                     ...prev,
@@ -103,40 +157,60 @@ const DoctorProfileForm = () => {
                         specializations: data.payload?.specializations || []
                     }
                 }));
-    
-                setStepValidation(prev => ({
-                    ...prev,
-                    specializations: data.isValid
-                }));
             }
         } else {
             setFormData(prev => ({
                 ...prev,
                 [stepId]: data
             }));
-    
-            const isValid = Boolean(
-                data && 
-                (typeof data === 'object' ? Object.keys(data).length > 0 : true)
-            );
-            
-            setStepValidation(prev => ({
-                ...prev,
-                [stepId]: isValid
-            }));
         }
+    
+        const isValid = Boolean(
+            data && 
+            (typeof data === 'object' ? Object.keys(data).length > 0 : true)
+        );
+        
+        setStepValidation(prev => ({
+            ...prev,
+            [stepId]: isValid
+        }));
     
         if (formError) {
             setFormError(null);
         }
     };
     
+    const transformDayData = (dayData) => {
+        if (!dayData) {
+            return {
+                enabled: false,
+                workingHours: { start: "09:00", end: "17:00" },
+                slots: [],
+                breaks: []
+            };
+        }
     
+        return {
+            enabled: dayData.enabled || false,
+            workingHours: {
+                start: dayData.workingHours?.start || "09:00",
+                end: dayData.workingHours?.end || "17:00"
+            },
+            slots: (dayData.slots || []).map(slot => ({
+                start: slot.start,
+                end: slot.end,
+                duration: slot.duration,
+                capacity: slot.capacity
+            })),
+            breaks: dayData.breaks || []
+        };
+    };
+        
     const validateCurrentStep = () => {
         const currentStepId = steps[currentStep].id;
         return stepValidation[currentStepId];
     };
-            
+
     const goToNext = () => {
         const currentStepId = steps[currentStep].id;
         
@@ -150,7 +224,7 @@ const DoctorProfileForm = () => {
             setCurrentStep(prev => prev + 1);
         }
     };
-            
+
     const goToPrevious = () => {
         if (currentStep > 0) {
             setFormError(null);
@@ -171,7 +245,7 @@ const DoctorProfileForm = () => {
 
     const preparePayload = () => {
         const specializationsData = submissionData.specializations || formData.specializations;
-
+        
         return {
             ...formData,
             specializations: specializationsData,
@@ -210,61 +284,162 @@ const DoctorProfileForm = () => {
                     }
                 }
             },
-            
             schedule: formData.schedule,
-            policies: {
-                ...formData.policies,
-                cancellationFee: parseFloat(formData.policies?.cancellationFee || 0),
-                noShowFee: parseFloat(formData.policies?.noShowFee || 0)
-            }
+            policies: formData.policies
         };
     };
 
     const handleSubmit = async () => {
-        const isValid = Object.values(stepValidation).every(valid => valid);
-        if (!isValid) {
-            setFormError('Please complete all required steps before submitting');
-            return;
-        }
-
         setIsSubmitting(true);
         setFormError(null);
 
         try {
-            const payload = preparePayload();
-            console.log('Submitting profile data:', payload);
-
-            const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to save profile');
+            const accessToken = localStorage.getItem('access_token');
+            if (!accessToken) {
+                throw new Error('No access token found. Please login again.');
             }
 
-            const result = await response.json();
-            console.log('Profile saved successfully:', result);
+            const payload = preparePayload();
+            
+            const profileResponse = await fetch('https://anochat.in/v1/doctor/profile', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    basicInfo: payload.basicInfo,
+                    qualifications: payload.qualifications,
+                    practiceDetails: payload.practiceDetails,
+                    specializations: payload.specializations
+                })
+            });
 
-            
-            alert('Profile saved successfully!');
-            
-            
-            
+            console.log('Profile Response Status:', profileResponse.status);
+            const responseText = await profileResponse.text();
+            console.log('Profile Response Text:', responseText);
 
-        } catch (error) {
-            console.error('Error saving profile:', error);
-            setFormError(error.message || 'An error occurred while saving your profile. Please try again.');
+            if (profileResponse.status === 401) {
+                const refreshToken = localStorage.getItem('refresh_token');
+                if (refreshToken) {
+                    try {
+                        const refreshResponse = await fetch('https://anochat.in/v1/auth/refresh', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                refresh_token: refreshToken
+                            })
+                        });
+
+                        if (refreshResponse.ok) {
+                            const refreshData = await refreshResponse.json();
+                            localStorage.setItem('access_token', refreshData.data.tokens.access_token);
+                            return handleSubmit();
+                        }
+                    } catch (refreshError) {
+                        console.error('Refresh token error:', refreshError);
+                    }
+                }
+                
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                window.location.href = '/doctor';
+                throw new Error('Session expired. Please login again.');
+            }
+
+            let profileData;
+            try {
+                profileData = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Error parsing response:', e);
+                throw new Error('Invalid response from server');
+            }
+
+            if (!profileResponse.ok || !profileData.success) {
+                throw new Error(profileData.message || 'Failed to save profile data');
+            }
+
+            if (profileData.data) {
+                localStorage.setItem('doctor_profile', JSON.stringify({
+                    basicInfo: profileData.data.basicInfo,
+                    qualifications: profileData.data.qualifications,
+                    practiceDetails: profileData.data.practiceDetails,
+                    specializations: profileData.data.specializations
+                }));
+
+                const scheduleRequestBody = {
+                    schedule: {
+                        defaultSettings: {
+                            timePerPatient: payload.schedule.defaultSettings?.timePerPatient || "30m"
+                        },
+                        days: payload.schedule.days
+                    },
+                    policies: {
+                        cancellationPolicy: payload.policies.cancellationPolicy,
+                        noShowPolicy: payload.policies.noShowPolicy,
+                        cancellationTimeframe: payload.policies.cancellationTimeframe,
+                        noShowFee: parseFloat(payload.policies.noShowFee || 0),
+                        cancellationFee: parseFloat(payload.policies.cancellationFee || 0),
+                        paymentMethods: payload.policies.paymentMethods,
+                        consultationPrep: payload.policies.consultationPrep,
+                        documentationRequired: payload.policies.documentationRequired,
+                        followUpPolicy: payload.policies.followUpPolicy,
+                        emergencyPolicy: payload.policies.emergencyPolicy,
+                        insuranceProviders: payload.policies.insuranceProviders
+                    }
+                };
+                
+                console.log('Schedule Request Body:', JSON.stringify(scheduleRequestBody, null, 2));
+
+                const scheduleResponse = await fetch('https://anochat.in/v1/doctor/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(scheduleRequestBody)
+                });
+
+                if (scheduleResponse.status === 401) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    window.location.href = '/doctor';
+                    throw new Error('Session expired. Please login again.');
+                }
+
+                const scheduleData = await scheduleResponse.json();
+                if (!scheduleResponse.ok || !scheduleData.success) {
+                    throw new Error(scheduleData.message || 'Failed to save schedule data');
+                }
+
+                localStorage.setItem('doctor_schedule', JSON.stringify(scheduleRequestBody));
+
+                window.location.href = '/doctor/dashboard';
+            }
+        } catch (err) {
+            console.error('Submission error:', err);
+            if (err.message.includes('Session expired')) {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                window.location.href = '/doctor';
+            } else {
+                setFormError(err.message || 'Failed to save profile data. Please try again.');
+            }
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="mb-8">
@@ -343,48 +518,49 @@ const DoctorProfileForm = () => {
                 )}
             </AnimatePresence>
 
-<div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-    <div className="p-6">
-        <AnimatePresence mode="wait">
-            <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-            >
-                {currentStep === steps.length - 1 ? (
-                    <ReviewStep
-                        data={{
-                            ...formData,
-                            specializations: {
-                                specializations: submissionData.specializations?.specializations || 
-                                               formData.specializations?.specializations || []
-                            }
-                        }}
-                        onEditSection={(sectionId) => {
-                            const stepIndex = steps.findIndex(step => step.id === sectionId);
-                            if (stepIndex !== -1) {
-                                goToStep(stepIndex);
-                            }
-                        }}
-                        validationStatus={stepValidation}
-                    />
-                ) : (
-                    <CurrentStepComponent
-                        data={formData[steps[currentStep].id]}
-                        onChange={handleStepChange}
-                        onValidationChange={(isValid) => {
-                            setStepValidation(prev => ({
-                                ...prev,
-                                [steps[currentStep].id]: isValid
-                            }));
-                        }}
-                    />
-                )}
-            </motion.div>
-        </AnimatePresence>
-    </div>
-</div> 
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div className="p-6">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentStep}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            {currentStep === steps.length - 1 ? (
+                                <ReviewStep
+                                    data={{
+                                        ...formData,
+                                        specializations: {
+                                            specializations: submissionData.specializations?.specializations || 
+                                                        formData.specializations?.specializations || []
+                                        }
+                                    }}
+                                    onEditSection={(sectionId) => {
+                                        const stepIndex = steps.findIndex(step => step.id === sectionId);
+                                        if (stepIndex !== -1) {
+                                            goToStep(stepIndex);
+                                        }
+                                    }}
+                                    validationStatus={stepValidation}
+                                />
+                            ) : (
+                                <CurrentStepComponent
+                                    data={formData[steps[currentStep].id]}
+                                    onChange={handleStepChange}
+                                    onValidationChange={(isValid) => {
+                                        setStepValidation(prev => ({
+                                            ...prev,
+                                            [steps[currentStep].id]: isValid
+                                        }));
+                                    }}
+                                />
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+            </div>
+
             <div className="flex items-center justify-between">
                 <button
                     onClick={goToPrevious}

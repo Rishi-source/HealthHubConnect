@@ -91,49 +91,89 @@ const DoctorAuthPage = ({ onLoginComplete, onSignupComplete }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateForm() || isLoading) return;
-
+    
         if (!validateEmail(formData.email)) {
             setError('Please enter a valid email address');
             return;
         }
-
+    
         if (!isLogin && !validatePhone(formData.phoneNumber)) {
             setError('Please enter a valid 10-digit phone number');
             return;
         }
-
+    
         setIsLoading(true);
         setError('');
-
+    
         try {
-            const endpoint = isLogin ? 'login' : 'signup';
-            const response = await fetch(`https://anochat.in/v1/doctor/${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                    name: formData.fullName,
-                    phone: formData.phoneNumber
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                setFormComplete(true);
-
-                if (isLogin) {
-                    onLoginComplete?.(data);
+            const email = formData.email.toLowerCase().trim();
+    
+            if (isLogin) {
+                const loginResponse = await fetch('https://anochat.in/v1/doctor/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: formData.password
+                    })
+                });
+    
+                const loginData = await loginResponse.json();
+    
+                if (loginResponse.ok && loginData.success) {
+                    localStorage.setItem('access_token', loginData.data.tokens.access_token);
+                    localStorage.setItem('refresh_token', loginData.data.tokens.refresh_token);
+                    localStorage.setItem('user', JSON.stringify(loginData.data.user));
+                    setFormComplete(true);
+                    onLoginComplete?.(loginData);
                 } else {
-                    localStorage.setItem('doctor_signup_email', formData.email);
-                    localStorage.setItem('doctor_signup_password', formData.password);
-                    onSignupComplete?.({ success: true, email: formData.email });
+                    throw new Error(loginData.data?.message || 'Login failed');
                 }
             } else {
-                throw new Error(data.message || 'Authentication failed');
+                const signupResponse = await fetch('https://anochat.in/v1/doctor/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: formData.password,
+                        name: formData.fullName.trim(),
+                        phone: parseInt(formData.phoneNumber)
+                    })
+                });
+    
+                const signupData = await signupResponse.json();
+    
+                if (signupResponse.ok && signupData.success) {
+                    const loginResponse = await fetch('https://anochat.in/v1/doctor/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: email,
+                            password: formData.password
+                        })
+                    });
+    
+                    const loginData = await loginResponse.json();
+    
+                    if (loginResponse.ok && loginData.success) {
+                        localStorage.setItem('access_token', loginData.data.tokens.access_token);
+                        localStorage.setItem('refresh_token', loginData.data.tokens.refresh_token);
+                        localStorage.setItem('user', JSON.stringify(loginData.data.user));
+                    }
+    
+                    localStorage.setItem('doctor_signup_email', email);
+                    localStorage.setItem('doctor_signup_password', formData.password);
+                    setFormComplete(true);
+                    onSignupComplete?.({ success: true, email: email });
+                } else {
+                    throw new Error(signupData.data?.message || 'Signup failed');
+                }
             }
         } catch (error) {
             console.error('Auth error:', error);
@@ -142,7 +182,8 @@ const DoctorAuthPage = ({ onLoginComplete, onSignupComplete }) => {
             setIsLoading(false);
         }
     };
-
+    
+    
     return (
         <div className="min-h-screen flex">
             <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-red-600 via-red-700 to-red-800 relative overflow-hidden p-12 flex-col justify-between">
